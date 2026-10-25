@@ -1,0 +1,17 @@
+{
+  "title": "DHSN Stundenplan (inoffiziell)",
+  "config": {
+    "step": {
+      "user": {
+        "title": "DHSN Stundenplan",
+        "description": "Gib deine Seminargruppe ein, um einen Kalender anzulegen.",
+        "data": {
+          "group": "Seminargruppe (z. B. 3sp26-1)"
+        }
+      }
+    },
+    "error": {
+      "invalid_group": "Bitte gültige Seminargruppe eingeben (Buchstaben, Zahlen, - oder _)."
+    }
+  }
+}
