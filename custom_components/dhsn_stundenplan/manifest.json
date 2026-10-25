@@ -1,13 +1,13 @@
 {
   "domain": "dhsn_stundenplan",
   "name": "DHSN Stundenplan (Unofficial)",
-  "version": "0.2.0",
-  "documentation": "https://github.com/abderlahmanalhnedi/DHSN-Stundenplan#readme",
-  "issue_tracker": "https://github.com/abderlahmanalhnedi/DHSN-Stundenplan/issues",
+  "codeowners": ["@abderlahmanalhnedi"],
   "config_flow": true,
   "dependencies": [],
-  "codeowners": ["@abderlahmanalhnedi"],
-  "requirements": ["beautifulsoup4==4.14.2"],
+  "documentation": "https://github.com/abderlahmanalhnedi/DHSN-Stundenplan#readme",
+  "integration_type": "service",
   "iot_class": "cloud_polling",
-  "integration_type": "service"
+  "issue_tracker": "https://github.com/abderlahmanalhnedi/DHSN-Stundenplan/issues",
+  "requirements": [],
+  "version": "0.2.1"
 }
