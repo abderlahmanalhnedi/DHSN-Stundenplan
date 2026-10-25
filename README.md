@@ -9,7 +9,7 @@ A simple, **unofficial**, read-only timetable calendar for [Home Assistant](http
 ## Deutsch
 
 ### Funktionen
-- **Nur Seminargruppe eingeben** (z. B. `3sp26-1`) – keine YAML-Konfiguration.
+- **Nur Seminargruppe eingeben** (z. B. `3spXX-1`) – keine YAML-Konfiguration.
 - Erstellt automatisch einen Kalender in Home Assistant.
 - Zeigt **Fächer, Datum/Uhrzeit, Räume und Dozenten** an, soweit die Quelle sie bereitstellt.
 - **Automatischer Abgleich alle 60 Minuten**; keine externe Cloud oder zusätzlicher Server erforderlich.
@@ -44,7 +44,7 @@ Fehler oder Verbesserungsvorschläge: [GitHub Issues](https://github.com/abderla
 ## English
 
 ### Features
-- **Enter only your seminar group** (e.g. `3sp26-1`); no YAML required.
+- **Enter only your seminar group** (e.g. `3spXX-1`); no YAML required.
 - Creates a native **Home Assistant calendar** automatically.
 - Shows **subjects, lecture times, rooms and lecturers** when provided by the timetable.
 - **Automatic synchronization every 60 minutes**, directly from Home Assistant; no extra server required.
