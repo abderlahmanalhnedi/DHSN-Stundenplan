@@ -1,0 +1,17 @@
+{
+  "title": "DHSN Stundenplan (Unofficial)",
+  "config": {
+    "step": {
+      "user": {
+        "title": "DHSN Stundenplan",
+        "description": "Enter your seminar group to add a read-only calendar.",
+        "data": {
+          "group": "Seminar group (e.g. 3sp26-1)"
+        }
+      }
+    },
+    "error": {
+      "invalid_group": "Please enter a valid group (letters, digits, hyphens, underscores)."
+    }
+  }
+}
