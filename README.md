@@ -2,6 +2,17 @@
 
 **Unofficial community integration for Duale Hochschule Sachsen (DHSN) / Inoffizielle Community-Integration für die Duale Hochschule Sachsen (DHSN)**
 
+[![Open repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=abderlahmanalhnedi&repository=DHSN-Stundenplan&category=integration)
+[![Add integration to Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=dhsn_stundenplan)
+
+[![Validate](https://github.com/abderlahmanalhnedi/DHSN-Stundenplan/actions/workflows/validate.yml/badge.svg)](https://github.com/abderlahmanalhnedi/DHSN-Stundenplan/actions/workflows/validate.yml)
+[![GitHub Issues](https://img.shields.io/badge/Report%20a%20bug-GitHub-blue?logo=github)](https://github.com/abderlahmanalhnedi/DHSN-Stundenplan/issues/new?template=bug_report.yml)
+[![MIT License](https://img.shields.io/badge/License-MIT-informational.svg)](LICENSE)
+
+**Quick links / Direktlinks:** [HACS installation](#installation-über-hacs) · [English setup](#install-with-hacs) · [Privacy / Datenschutz](PRIVACY.md) · [Legal notice / Rechtliches](NOTICE.md)
+
+> **Button usage / Hinweise:** **HACS** opens the custom repository in your own Home Assistant; download it and restart Home Assistant before clicking **Add integration**. / **HACS** öffnet das benutzerdefinierte Repository in deiner Home-Assistant-Instanz. Erst herunterladen und Home Assistant neu starten, dann **Integration hinzufügen** wählen.
+
 **Deutsch** · [English](#english) | **Status:** Experimental / Community integration
 
 A simple, **unofficial**, read-only timetable calendar for [Home Assistant](https://www.home-assistant.io/). Enter your seminar group once; your upcoming lectures appear in the Home Assistant calendar.
@@ -27,6 +38,11 @@ Diese Integration richtet sich an Studierende der **Dualen Hochschule Sachsen (D
 - Keine Zugangsdaten, Cookies, Tokens, Tracking oder zentral gespeicherten Stundenpläne.
 
 ### Installation über HACS
+
+**Schnellstart:** [**Repository in HACS öffnen**](https://my.home-assistant.io/redirect/hacs_repository/?owner=abderlahmanalhnedi&repository=DHSN-Stundenplan&category=integration) → Herunterladen → Home Assistant neu starten → [**Integration hinzufügen**](https://my.home-assistant.io/redirect/config_flow_start/?domain=dhsn_stundenplan) → Seminargruppe eingeben.
+
+**Hinweis:** Falls schon eine ältere Version von `dhsn_stundenplan` manuell installiert wurde, zuerst die aktuelle Konfiguration sichern und nicht zwei Kopien derselben Integration parallel installieren. Die GitHub-/HACS-Version wurde noch nicht vollständig in einer frischen Home-Assistant-Testinstallation geprüft.
+
 1. In Home Assistant **HACS** öffnen.
 2. Das Menü **⋮ → Benutzerdefinierte Repositories / Custom repositories** öffnen.
 3. **`https://github.com/abderlahmanalhnedi/DHSN-Stundenplan`** eingeben; Kategorie **Integration** wählen und hinzufügen.
@@ -72,6 +88,11 @@ This integration is intended for students of **Duale Hochschule Sachsen (DHSN)**
 - No credentials, cookies, login tokens, telemetry or centralized timetable storage.
 
 ### Install with HACS
+
+**Quick start:** [**Open in HACS**](https://my.home-assistant.io/redirect/hacs_repository/?owner=abderlahmanalhnedi&repository=DHSN-Stundenplan&category=integration) → Download → Restart Home Assistant → [**Add integration**](https://my.home-assistant.io/redirect/config_flow_start/?domain=dhsn_stundenplan) → Enter seminar group.
+
+**Important:** If an older `dhsn_stundenplan` copy was installed manually, back up your current configuration first and do not install duplicate copies of the same integration. Clean-install testing of the published HACS version is still outstanding.
+
 1. Open **HACS** in Home Assistant.
 2. Open **⋮ → Custom repositories**.
 3. Enter **`https://github.com/abderlahmanalhnedi/DHSN-Stundenplan`**, select **Integration**, and add it.

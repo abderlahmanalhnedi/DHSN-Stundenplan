@@ -1,0 +1,63 @@
+name: "Bug report / Fehler melden"
+description: "Report a problem without sharing personal or university session data."
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Deutsch / English:** Dieses Projekt ist inoffiziell und experimentell.
+        Please **never upload** HAR captures, HTTP headers, login credentials,
+        cookies, access tokens or real timetables with personal information.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: "Privacy checklist / Datenschutz"
+      options:
+        - label: "I removed credentials, HAR data, tokens, cookies, teacher names and personal information from my report. / Ich habe vertrauliche Daten entfernt."
+          required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: "Home Assistant version / Version"
+      placeholder: "2026.x.x"
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: "Integration version / Integrationsversion"
+      placeholder: "0.2.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: "Installation method / Installationsweg"
+      options:
+        - "HACS custom repository"
+        - "Manual custom_components"
+        - "Other / Sonstige"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected result / Erwartetes Verhalten"
+      placeholder: "What should happen? / Was sollte passieren?"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Actual result & steps / Tatsächliches Verhalten und Schritte"
+      placeholder: "Reproduction steps without real timetable data. / Schritte ohne echte Stundenplandaten."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Sanitized logs / Bereinigte Protokolle (optional)"
+      description: "Only redact-safe errors. / Nur bereinigte Fehler."
+      render: text
+    validations:
+      required: false

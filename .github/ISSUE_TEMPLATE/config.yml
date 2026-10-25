@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "HACS installation help / Hilfe bei HACS"
+    url: "https://www.hacs.dev/docs/faq/custom_repositories/"
+    about: "Before reporting installation issues, consult the HACS documentation."
+  - name: "Privacy and legal information / Datenschutz und Rechtliches"
+    url: "https://github.com/abderlahmanalhnedi/DHSN-Stundenplan/blob/main/NOTICE.md"
+    about: "Read this before using the timetable integration."
