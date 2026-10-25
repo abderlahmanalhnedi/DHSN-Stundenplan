@@ -6,7 +6,7 @@
         "title": "DHSN Stundenplan",
         "description": "Enter your seminar group to add a read-only calendar.",
         "data": {
-          "group": "Seminar group (e.g. 3sp26-1)"
+          "group": "Seminar group (e.g. 3spXX-1)"
         }
       }
     },
