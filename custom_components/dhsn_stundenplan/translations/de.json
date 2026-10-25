@@ -6,7 +6,7 @@
         "title": "DHSN Stundenplan",
         "description": "Gib deine Seminargruppe ein, um einen Kalender anzulegen.",
         "data": {
-          "group": "Seminargruppe (z. B. 3sp26-1)"
+          "group": "Seminargruppe (z. B. 3spXX-1)"
         }
       }
     },
