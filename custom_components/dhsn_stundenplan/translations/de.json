@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "DHSN Stundenplan",
-        "description": "Gib deine Seminargruppe ein, um einen Kalender anzulegen.",
+        "description": "Unabhängiges, inoffizielles Projekt für die Duale Hochschule Sachsen. Die Eingabe der Seminargruppe startet regelmäßige direkte Anfragen an einen externen Stundenplanserver. Nur bei erlaubter Nutzung verwenden; eine Freigabe des Betreibers ist nicht bestätigt.",
         "data": {
           "group": "Seminargruppe (z. B. 3spXX-1)"
         }

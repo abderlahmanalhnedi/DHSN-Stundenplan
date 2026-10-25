@@ -1,12 +1,22 @@
 # 🎓 DHSN Stundenplan for Home Assistant
 
+**Unofficial community integration for Duale Hochschule Sachsen (DHSN) / Inoffizielle Community-Integration für die Duale Hochschule Sachsen (DHSN)**
+
 **Deutsch** · [English](#english) | **Status:** Experimental / Community integration
 
 A simple, **unofficial**, read-only timetable calendar for [Home Assistant](https://www.home-assistant.io/). Enter your seminar group once; your upcoming lectures appear in the Home Assistant calendar.
 
 > **Independent open-source project.** Not affiliated with, sponsored by or supported by DHSN, Campus Dual, or the university timetable operator. **The publisher has not yet confirmed permission for automated requests.** Please comply with the service's terms and stop using automated fetching if the operator objects.
 
+## Projektstatus / Project status
+
+**Die Duale Hochschule Sachsen (DHSN) hat diese Integration nicht beauftragt, genehmigt oder unterstützt.** Das Projekt ist nicht mit der Hochschule, Campus Dual oder dem Betreiber des Stundenplans verbunden. Die Verwendung des Hochschulnamens dient nur zur Identifizierung des Anwendungsbereichs. Es werden weder offizielle Logos noch kopierte Stundenpläne veröffentlicht. Derzeit liegt **keine bestätigte Erlaubnis für automatisierte Anfragen** vor; die geltenden Nutzungsbedingungen sind zu beachten. Ein öffentlich erreichbarer Endpunkt bedeutet nicht automatisch eine Erlaubnis zum Polling.
+
+**Independent and unofficial.** This project is not commissioned, approved, affiliated with or supported by Duale Hochschule Sachsen, Campus Dual or the timetable operator. University names are used only for factual identification. **Authorization for automated timetable polling has not been confirmed.** Public accessibility alone does not establish permission. See [Legal notice](NOTICE.md), [Privacy](PRIVACY.md) and [Publication checklist](PUBLICATION_CHECKLIST.md).
+
 ## Deutsch
+
+Diese Integration richtet sich an Studierende der **Dualen Hochschule Sachsen (DHSN)**. Die Entwicklung und ein erster lokaler Test basieren auf dem Stundenplansystem des Standorts Dresden. Andere Standorte sind **nicht nachweislich unterstützt**.
 
 ### Funktionen
 - **Nur Seminargruppe eingeben** (z. B. `3spXX-1`) – keine YAML-Konfiguration.
@@ -29,6 +39,14 @@ Fertig! Der Kalender erscheint automatisch als Entität, etwa `calendar.stundenp
 
 **Für Dashboard-Nutzer:** Die Standard-Kalenderkarte oder `custom:calendar-card-pro` kann diese Kalender-Entität anzeigen. Wenn die nächsten Vorlesungen erst in mehreren Wochen stattfinden, muss der Anzeigezeitraum entsprechend erweitert werden (z. B. `days_to_show: 90`).
 
+### Verantwortungsvolle Nutzung
+
+- Automatisierte Abrufe bitte nur durchführen, wenn die Hochschule bzw. der zuständige Betreiber diese Nutzung erlaubt. Vor öffentlicher Bewerbung sollte eine schriftliche Klärung erfolgen.
+- Wenn der Betreiber den Zugriff untersagt oder einschränkt, die Integration **sofort deaktivieren**.
+- Keine automatisierten Massenabfragen, keine systematische Suche nach Seminargruppen und keine Mehrfachinstallationen für dieselbe Gruppe.
+- Standardmäßig erfolgt eine direkte Abfrage etwa **einmal pro Stunde je Integration**. Ein Serverbetreiber kann IP-Adresse, Gruppenkennung und Anfragezeitpunkt sehen.
+- Details: [Rechtliche Hinweise](NOTICE.md) · [Datenschutz](PRIVACY.md) · [Sicherheit](SECURITY.md).
+
 ### Einschränkungen & Sicherheit
 - Benötigt eine erreichbare Stundenplanquelle. Wenn die Universität Zugriff oder Schnittstelle ändert, können Updates fehlschlagen.
 - Kein offizieller API-Vertrag; Verfügbarkeit und Korrektheit werden nicht garantiert. Änderungen immer im offiziellen Stundenplan prüfen.
@@ -42,6 +60,8 @@ Fehler oder Verbesserungsvorschläge: [GitHub Issues](https://github.com/abderla
 ---
 
 ## English
+
+This integration is intended for students of **Duale Hochschule Sachsen (DHSN)**. It has initially been tested with the timetable service used by the **Dresden campus**; compatibility with other DHSN locations is **not verified**.
 
 ### Features
 - **Enter only your seminar group** (e.g. `3spXX-1`); no YAML required.
@@ -63,6 +83,14 @@ Fehler oder Verbesserungsvorschläge: [GitHub Issues](https://github.com/abderla
 Done! A calendar entity is created automatically (e.g. `calendar.stundenplan_3spxx_1`; your actual entity ID may differ). Enable it in the **Calendar** dashboard.
 
 For dashboard cards that only show upcoming days, increase their display window if the next lecture is farther away (e.g. `days_to_show: 90` in Calendar Card Pro).
+
+### Responsible use
+
+- Only poll the timetable service where automated access is permitted by the relevant operator. Written clarification is recommended before wide promotion.
+- **Disable the integration immediately** if the service operator objects or restricts automated access.
+- Do not enumerate group codes, bulk scrape timetables or install duplicate integrations for the same group.
+- Normally one direct request is made **per hour per integration**. The receiving server may log IP address, seminar-group identifier and request time.
+- See [Legal notice](NOTICE.md), [Privacy](PRIVACY.md) and [Security](SECURITY.md).
 
 ### Limitations & privacy
 - Requires an accessible timetable source. No guaranteed or official API; changes to the source may break synchronization.

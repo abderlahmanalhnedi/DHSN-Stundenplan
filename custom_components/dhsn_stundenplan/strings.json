@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "DHSN Stundenplan",
-        "description": "Enter your seminar group to add a read-only calendar.",
+        "description": "Independent, unofficial project for Duale Hochschule Sachsen. Entering the seminar group starts periodic direct requests to an external timetable server. Only use where authorized; operator approval has not been confirmed.",
         "data": {
           "group": "Seminar group (e.g. 3spXX-1)"
         }

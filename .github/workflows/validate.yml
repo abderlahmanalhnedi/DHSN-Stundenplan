@@ -5,6 +5,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# When several commits arrive quickly, cancel obsolete runs to reduce noise.
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
