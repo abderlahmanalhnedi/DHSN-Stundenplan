@@ -1,4 +1,5 @@
 {
   "name": "DHSN Stundenplan (Unofficial)",
-  "render_readme": true
+  "render_readme": true,
+  "country": "DE"
 }
