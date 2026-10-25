@@ -1,0 +1,29 @@
+name: Publish first release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-initial-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish initial GitHub release once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view v0.2.1 >/dev/null 2>&1; then
+            echo "Release already exists"
+            exit 0
+          fi
+          gh release create v0.2.1 \
+            --target "$GITHUB_SHA" \
+            --title "v0.2.1 - DHSN Stundenplan (Unofficial)" \
+            --notes "Experimental, unofficial Home Assistant calendar integration for Duale Hochschule Sachsen (DHSN). Initial HACS-compatible release with German and English documentation, hourly read-only updates, and privacy and legal notices. Enter a seminar group to create the calendar. This project is not endorsed by the university or the timetable operator. Permission for automated data requests has not been confirmed; users must follow applicable terms and stop polling if the operator objects."
