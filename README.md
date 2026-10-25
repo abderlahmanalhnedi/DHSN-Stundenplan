@@ -25,7 +25,7 @@ A simple, **unofficial**, read-only timetable calendar for [Home Assistant](http
 6. **Einstellungen → Geräte & Dienste → Integration hinzufügen → DHSN Stundenplan** wählen.
 7. Eigene **Seminargruppe** eingeben und bestätigen.
 
-Fertig! Der Kalender erscheint automatisch als Entität, etwa `calendar.stundenplan_3sp26_1` (die tatsächliche Entitäts-ID kann abweichen). Öffne **Kalender** und aktiviere ihn.
+Fertig! Der Kalender erscheint automatisch als Entität, etwa `calendar.stundenplan_3spxx_1` (die tatsächliche Entitäts-ID kann abweichen). Öffne **Kalender** und aktiviere ihn.
 
 **Für Dashboard-Nutzer:** Die Standard-Kalenderkarte oder `custom:calendar-card-pro` kann diese Kalender-Entität anzeigen. Wenn die nächsten Vorlesungen erst in mehreren Wochen stattfinden, muss der Anzeigezeitraum entsprechend erweitert werden (z. B. `days_to_show: 90`).
 
@@ -60,7 +60,7 @@ Fehler oder Verbesserungsvorschläge: [GitHub Issues](https://github.com/abderla
 6. Go to **Settings → Devices & services → Add integration → DHSN Stundenplan**.
 7. Enter your **seminar group** and submit.
 
-Done! A calendar entity is created automatically (e.g. `calendar.stundenplan_3sp26_1`; your actual entity ID may differ). Enable it in the **Calendar** dashboard.
+Done! A calendar entity is created automatically (e.g. `calendar.stundenplan_3spxx_1`; your actual entity ID may differ). Enable it in the **Calendar** dashboard.
 
 For dashboard cards that only show upcoming days, increase their display window if the next lecture is farther away (e.g. `days_to_show: 90` in Calendar Card Pro).
 
