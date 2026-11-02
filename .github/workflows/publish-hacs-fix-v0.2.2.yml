@@ -1,0 +1,37 @@
+name: Publish HACS fix v0.2.2
+
+on:
+  workflow_run:
+    workflows: ["Validate"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release once, only after validation of the current main revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$VERIFIED_SHA" ]; then
+            echo "Validation applies to older revision; skipping."
+            exit 0
+          fi
+
+          if gh release view v0.2.2 >/dev/null 2>&1; then
+            echo "v0.2.2 release already exists; nothing to do."
+            exit 0
+          fi
+
+          gh release create v0.2.2 \
+            --target "$VERIFIED_SHA" \
+            --title "v0.2.2 - Fix Home Assistant dependency installation" \
+            --notes "Fixes the missing beautifulsoup4 Python requirement identified during the HACS review of PR #12665. Home Assistant can now install the parser dependency in a clean environment. No timetable polling behavior was changed (regular refresh remains every 60 minutes). This independent DHSN integration is unofficial; automated access permissions have not been confirmed by the timetable operator."

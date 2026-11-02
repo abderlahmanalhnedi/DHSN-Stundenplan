@@ -37,6 +37,15 @@ class TestParser(unittest.TestCase):
         html = HTML.replace('class="Vorlesung"', 'class="Freizeit"')
         self.assertEqual(MOD.parse_html(html, "test-1"), [])
 
+    def test_manifest_declares_parser_dependency(self):
+        import json
+        manifest = (
+            Path(__file__).resolve().parents[1]
+            / "custom_components" / "dhsn_stundenplan" / "manifest.json"
+        )
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        self.assertIn("beautifulsoup4==4.14.2", data["requirements"])
+
     def test_login_page_rejected(self):
         with self.assertRaises(ValueError):
             MOD.parse_html("<html>Login required</html>", "test-1")
