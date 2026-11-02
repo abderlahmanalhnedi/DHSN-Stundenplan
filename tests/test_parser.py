@@ -44,7 +44,7 @@ class TestParser(unittest.TestCase):
             / "custom_components" / "dhsn_stundenplan" / "manifest.json"
         )
         data = json.loads(manifest.read_text(encoding="utf-8"))
-        self.assertIn("beautifulsoup4==4.14.2", data["requirements"])
+        self.assertIn("beautifulsoup4==4.15.0", data["requirements"])
 
     def test_login_page_rejected(self):
         with self.assertRaises(ValueError):
