@@ -1,0 +1,35 @@
+name: Publish documentation and icon v0.2.3
+
+on:
+  workflow_run:
+    workflows: ["Validate"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release only for successfully validated main revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$VERIFIED_SHA" ]; then
+            echo "The validation was for an older revision, skipping."
+            exit 0
+          fi
+          if gh release view v0.2.3 >/dev/null 2>&1; then
+            echo "Release already published."
+            exit 0
+          fi
+          gh release create v0.2.3 \
+            --target "$VERIFIED_SHA" \
+            --title "v0.2.3 - HACS install instructions and calendar icon" \
+            --notes "Documentation: German and English guides now start with searching for DHSN Stundenplan directly in the official HACS catalog, with custom-repository setup only as a fallback. Branding: replace the local 256x256 calendar icon with an original blue-and-gold design. No timetable data access or synchronization logic changed. Note: HACS may still show an icon placeholder due to a known HACS frontend issue with local integration branding. This integration is unofficial and not endorsed by DHSN."
