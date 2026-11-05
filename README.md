@@ -1,5 +1,7 @@
 # 🎓 DHSN Stundenplan for Home Assistant
 
+![DHSN Stundenplan – calendar and clock icon](custom_components/dhsn_stundenplan/brand/icon.png)
+
 **Unofficial community integration for Duale Hochschule Sachsen (DHSN) / Inoffizielle Community-Integration für die Duale Hochschule Sachsen (DHSN)**
 
 [![Open repository in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=abderlahmanalhnedi&repository=DHSN-Stundenplan&category=integration)
@@ -11,7 +13,7 @@
 
 **Quick links / Direktlinks:** [HACS installation](#installation-über-hacs) · [English setup](#install-with-hacs) · [Privacy / Datenschutz](PRIVACY.md) · [Legal notice / Rechtliches](NOTICE.md)
 
-> **Button usage / Hinweise:** **HACS** opens the custom repository in your own Home Assistant; download it and restart Home Assistant before clicking **Add integration**. / **HACS** öffnet das benutzerdefinierte Repository in deiner Home-Assistant-Instanz. Erst herunterladen und Home Assistant neu starten, dann **Integration hinzufügen** wählen.
+> **HACS default repository / Standard-Katalog:** DHSN Stundenplan is listed in the official HACS catalog. **Search for "DHSN Stundenplan" directly in HACS** and download it. The HACS button above is an optional direct shortcut to the repository page, **not a required custom-repository setup**. / **Suche in HACS direkt nach „DHSN Stundenplan“** und lade die Integration herunter. Der HACS-Button oben ist nur ein optionaler Direktlink.
 
 **Deutsch** · [English](#english) | **Status:** Experimental / Community integration
 
@@ -39,19 +41,27 @@ Diese Integration richtet sich an Studierende der **Dualen Hochschule Sachsen (D
 
 ### Installation über HACS
 
-**Schnellstart:** [**Repository in HACS öffnen**](https://my.home-assistant.io/redirect/hacs_repository/?owner=abderlahmanalhnedi&repository=DHSN-Stundenplan&category=integration) → Herunterladen → Home Assistant neu starten → [**Integration hinzufügen**](https://my.home-assistant.io/redirect/config_flow_start/?domain=dhsn_stundenplan) → Seminargruppe eingeben.
-
-**Hinweis:** Falls schon eine ältere Version von `dhsn_stundenplan` manuell installiert wurde, zuerst die aktuelle Konfiguration sichern und nicht zwei Kopien derselben Integration parallel installieren. Die GitHub-/HACS-Version wurde noch nicht vollständig in einer frischen Home-Assistant-Testinstallation geprüft.
+**Standardinstallation (empfohlen — keine benutzerdefinierte Repository-URL nötig):**
 
 1. In Home Assistant **HACS** öffnen.
-2. Das Menü **⋮ → Benutzerdefinierte Repositories / Custom repositories** öffnen.
-3. **`https://github.com/abderlahmanalhnedi/DHSN-Stundenplan`** eingeben; Kategorie **Integration** wählen und hinzufügen.
-4. Nach **DHSN Stundenplan** suchen und **Herunterladen / Download** anklicken.
-5. **Home Assistant neu starten.**
-6. **Einstellungen → Geräte & Dienste → Integration hinzufügen → DHSN Stundenplan** wählen.
-7. Eigene **Seminargruppe** eingeben und bestätigen.
+2. Nach **DHSN Stundenplan** suchen.
+3. Die Integration auswählen und auf **Herunterladen / Download** klicken.
+4. **Home Assistant neu starten.**
+5. **Einstellungen → Geräte & Dienste → Integration hinzufügen → DHSN Stundenplan** wählen.
+6. Die eigene **Seminargruppe** eingeben und bestätigen.
 
-Fertig! Der Kalender erscheint automatisch als Entität, etwa `calendar.stundenplan_3spxx_1` (die tatsächliche Entitäts-ID kann abweichen). Öffne **Kalender** und aktiviere ihn.
+Fertig! Der Kalender erscheint automatisch als Entität, etwa `calendar.stundenplan_3spxx_1` (die tatsächliche Entitäts-ID kann abweichen). Unter **Kalender** kannst du ihn einblenden.
+
+**Direktlinks:** [DHSN Stundenplan in HACS öffnen](https://my.home-assistant.io/redirect/hacs_repository/?owner=abderlahmanalhnedi&repository=DHSN-Stundenplan&category=integration) · [Integration konfigurieren](https://my.home-assistant.io/redirect/config_flow_start/?domain=dhsn_stundenplan)
+
+<details>
+<summary>Wenn die Integration in der HACS-Suche noch nicht angezeigt wird</summary>
+
+Prüfe, ob HACS seine Repository-Daten aktualisiert hat, und versuche die Suche erneut. Nur falls weiterhin nötig: **HACS → ⋮ → Benutzerdefinierte Repositories / Custom repositories** öffnen, `https://github.com/abderlahmanalhnedi/DHSN-Stundenplan` mit Kategorie **Integration** hinzufügen und danach herunterladen. Diese manuelle Methode ist seit der Aufnahme in den HACS-Katalog normalerweise **nicht erforderlich**.
+
+</details>
+
+**Bestehende manuelle Installation:** Vor dem Wechsel auf HACS bitte die Home-Assistant-Konfiguration sichern. Nicht zwei Kopien von `dhsn_stundenplan` parallel installieren. Die Migration bestehender Konfigurationen wurde noch nicht umfassend getestet.
 
 **Für Dashboard-Nutzer:** Die Standard-Kalenderkarte oder `custom:calendar-card-pro` kann diese Kalender-Entität anzeigen. Wenn die nächsten Vorlesungen erst in mehreren Wochen stattfinden, muss der Anzeigezeitraum entsprechend erweitert werden (z. B. `days_to_show: 90`).
 
@@ -89,19 +99,27 @@ This integration is intended for students of **Duale Hochschule Sachsen (DHSN)**
 
 ### Install with HACS
 
-**Quick start:** [**Open in HACS**](https://my.home-assistant.io/redirect/hacs_repository/?owner=abderlahmanalhnedi&repository=DHSN-Stundenplan&category=integration) → Download → Restart Home Assistant → [**Add integration**](https://my.home-assistant.io/redirect/config_flow_start/?domain=dhsn_stundenplan) → Enter seminar group.
-
-**Important:** If an older `dhsn_stundenplan` copy was installed manually, back up your current configuration first and do not install duplicate copies of the same integration. Clean-install testing of the published HACS version is still outstanding.
+**Recommended installation (now in the default HACS catalog — no custom repository required):**
 
 1. Open **HACS** in Home Assistant.
-2. Open **⋮ → Custom repositories**.
-3. Enter **`https://github.com/abderlahmanalhnedi/DHSN-Stundenplan`**, select **Integration**, and add it.
-4. Find **DHSN Stundenplan** in HACS and click **Download**.
-5. **Restart Home Assistant.**
-6. Go to **Settings → Devices & services → Add integration → DHSN Stundenplan**.
-7. Enter your **seminar group** and submit.
+2. Search for **DHSN Stundenplan**.
+3. Select the integration and click **Download**.
+4. **Restart Home Assistant.**
+5. Go to **Settings → Devices & services → Add integration → DHSN Stundenplan**.
+6. Enter your **seminar group** and submit.
 
-Done! A calendar entity is created automatically (e.g. `calendar.stundenplan_3spxx_1`; your actual entity ID may differ). Enable it in the **Calendar** dashboard.
+Done! The integration automatically creates a calendar entity (for example `calendar.stundenplan_3spxx_1`; your actual entity ID may differ). Enable it on the **Calendar** dashboard.
+
+**Shortcuts:** [Open DHSN Stundenplan in HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=abderlahmanalhnedi&repository=DHSN-Stundenplan&category=integration) · [Set up integration](https://my.home-assistant.io/redirect/config_flow_start/?domain=dhsn_stundenplan)
+
+<details>
+<summary>If you cannot find the integration in HACS search yet</summary>
+
+Let HACS refresh its catalog and search again. Only if necessary, open **HACS → ⋮ → Custom repositories**, add `https://github.com/abderlahmanalhnedi/DHSN-Stundenplan` as an **Integration**, and download it. This fallback is **normally unnecessary** because the repository is included in the HACS default catalog.
+
+</details>
+
+**Migrating a manual installation:** Back up Home Assistant first; do not install duplicate `dhsn_stundenplan` copies. Migrating existing configurations has not been fully tested yet.
 
 For dashboard cards that only show upcoming days, increase their display window if the next lecture is farther away (e.g. `days_to_show: 90` in Calendar Card Pro).
 
@@ -124,6 +142,12 @@ For dashboard cards that only show upcoming days, increase their display window 
 Report bugs or suggestions in [GitHub Issues](https://github.com/abderlahmanalhnedi/DHSN-Stundenplan/issues) using sanitized, non-sensitive information.
 
 ---
+
+## Icon / Symbol
+
+Home Assistant 2026.3+ supports local integration branding through `custom_components/dhsn_stundenplan/brand/icon.png` (and optionally `icon@2x.png`). If the icon appears correctly in **Settings → Devices & services** but HACS still shows **“Icon not available”**, this may be a [known HACS frontend issue](https://github.com/hacs/integration/issues/5402) affecting local brand assets. This is not a timetable synchronization error.
+
+**Deutsch:** Das Integrationssymbol wird lokal mitgeliefert. Falls nur HACS „Icon not available“ anzeigt, kann dies an einem bekannten Darstellungsproblem von HACS liegen, nicht an der Integration selbst.
 
 ## Development / Entwicklung
 Source: `custom_components/dhsn_stundenplan/` · Synthetic offline tests: `tests/`. HACS and hassfest validation run using GitHub Actions. This is an experimental community project; please test carefully before relying on it.
