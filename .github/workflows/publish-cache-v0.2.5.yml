@@ -1,0 +1,35 @@
+name: Publish resilient timetable v0.2.5
+
+on:
+  workflow_run:
+    workflows: ["Validate"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish v0.2.5 only after validated main revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$VERIFIED_SHA" ]; then
+            echo "Validation is for an older main revision; skipping."
+            exit 0
+          fi
+          if gh release view v0.2.5 >/dev/null 2>&1; then
+            echo "Release already exists; nothing to do."
+            exit 0
+          fi
+          gh release create v0.2.5 \
+            --target "$VERIFIED_SHA" \
+            --title "v0.2.5 - Keep last known good timetable during outages" \
+            --notes "Reliability improvement: keeps a private local cache of the last successfully parsed DHSN timetable and restores it after Home Assistant restarts. If the university timetable temporarily fails, the calendar continues displaying previously fetched events instead of becoming unavailable; those events may be outdated. New diagnostic sensors show Sync-Status (up_to_date/stale) and Letzte erfolgreiche Synchronisierung (last successful sync timestamp). The calendar also exposes these attributes. Cached content is removed with the integration entry. No extra requests or services, no change to hourly polling, group configuration or existing calendar unique ID. On first install, a successful initial fetch is still necessary. This project is unofficial and not affiliated with DHSN."

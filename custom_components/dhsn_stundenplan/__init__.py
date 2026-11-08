@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 from aiohttp import ClientError, ClientTimeout
@@ -12,21 +12,29 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import BASE_URL, CONF_GROUP, DOMAIN
-from .parse import parse_html, safe_validation_reason
+from .parse import (
+    decode_cached_timetable,
+    encode_cached_timetable,
+    parse_html,
+    safe_validation_reason,
+)
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = [Platform.CALENDAR]
+PLATFORMS = [Platform.CALENDAR, Platform.SENSOR]
 MAX_RESPONSE_BYTES = 3_000_000
 UPDATE_INTERVAL = timedelta(hours=1)
+STORAGE_VERSION = 1
 
 
 class TimetableCoordinator(DataUpdateCoordinator):
-    """Fetch a group's timetable at a considerate rate."""
+    """Poll one seminar group's timetable and retain its last good snapshot."""
 
-    def __init__(self, hass: HomeAssistant, group: str):
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry):
+        group = entry.data[CONF_GROUP]
         super().__init__(
             hass,
             _LOGGER,
@@ -34,12 +42,35 @@ class TimetableCoordinator(DataUpdateCoordinator):
             update_interval=UPDATE_INTERVAL,
         )
         self.group = group
+        self.last_successful_sync: datetime | None = None
+        # Scope the private local cache to this individual config entry.
+        self.store = Store(
+            hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}", private=True
+        )
         self.url = BASE_URL + "?" + urlencode(
             {"akttyp": "1", "aktwert": group, "legendefach": "on"}
         )
 
+    async def async_restore_cache(self) -> None:
+        """Restore a validated snapshot before attempting a network refresh."""
+        try:
+            saved = await self.store.async_load()
+            if saved is None:
+                return
+            restored_at, events = decode_cached_timetable(saved, self.group)
+        except Exception as exc:  # Storage can fail due to unreadable files.
+            _LOGGER.warning(
+                "Could not restore cached DHSN timetable (%s)",
+                type(exc).__name__,
+            )
+            return
+
+        self.data = events
+        self.last_successful_sync = restored_at
+        _LOGGER.debug("Restored cached DHSN timetable: %s events", len(events))
+
     async def _async_update_data(self):
-        """Fetch and parse; never automatically retry aggressively."""
+        """Fetch and parse, never replacing a valid cache with failed responses."""
         try:
             session = async_get_clientsession(self.hass)
             async with session.get(
@@ -54,11 +85,9 @@ class TimetableCoordinator(DataUpdateCoordinator):
                 if len(raw) > MAX_RESPONSE_BYTES:
                     raise ValueError("Timetable response exceeds size limit")
                 html = raw.decode(response.charset or "utf-8", errors="replace")
+
             events = await self.hass.async_add_executor_job(parse_html, html, self.group)
-            _LOGGER.debug("Parsed DHSN timetable: %s events", len(events))
-            return events
         except ValueError as exc:
-            # Log only predefined, non-sensitive validation reasons; never raw HTML.
             raise UpdateFailed(
                 f"Timetable validation failed: {safe_validation_reason(exc)}"
             ) from exc
@@ -67,22 +96,47 @@ class TimetableCoordinator(DataUpdateCoordinator):
                 f"Timetable request failed: {type(exc).__name__}"
             ) from exc
 
+        # Only a complete valid parse can replace the old snapshot.
+        refreshed_at = datetime.now(timezone.utc)
+        self.last_successful_sync = refreshed_at
+        try:
+            snapshot = encode_cached_timetable(self.group, refreshed_at, events)
+            await self.store.async_save(snapshot)
+        except Exception as exc:  # A disk error must not hide fresh data.
+            _LOGGER.warning(
+                "Could not save cached DHSN timetable (%s)", type(exc).__name__
+            )
+        _LOGGER.debug("Parsed DHSN timetable: %s events", len(events))
+        return events
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up a native calendar for the configured seminar group."""
+    """Set up calendar and sync sensors, including during source outages."""
     group = entry.data[CONF_GROUP]
     if not re.fullmatch(r"[A-Za-z0-9_-]{2,30}", group):
         raise ConfigEntryNotReady("Invalid seminar group format")
-    coordinator = TimetableCoordinator(hass, group)
-    await coordinator.async_config_entry_first_refresh()
+    coordinator = TimetableCoordinator(hass, entry)
+    await coordinator.async_restore_cache()
+    # First refresh is non-fatal only when we have a saved valid snapshot.
+    await coordinator.async_refresh()
+    if coordinator.data is None:
+        raise ConfigEntryNotReady(
+            "Timetable unavailable and no previously saved timetable exists"
+        )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload the calendar cleanly."""
+    """Unload without discarding the snapshot used after a restart."""
     result = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if result:
         hass.data[DOMAIN].pop(entry.entry_id, None)
     return result
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Erase cached timetable content when the integration is removed."""
+    store = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}", private=True)
+    await store.async_remove()

@@ -39,6 +39,25 @@ class DHSNCalendar(CoordinatorEntity, CalendarEntity):
         self._attr_unique_id = f"dhsn_stundenplan_{coordinator.group}"
 
     @property
+    def available(self) -> bool:
+        """Keep the last known good calendar available during failed polling."""
+        return self.coordinator.last_successful_sync is not None
+
+    @property
+    def extra_state_attributes(self):
+        """Clearly flag events as potentially stale after a failed poll."""
+        return {
+            "sync_status": (
+                "up_to_date" if self.coordinator.last_update_success else "stale"
+            ),
+            "last_successful_sync": (
+                self.coordinator.last_successful_sync.isoformat()
+                if self.coordinator.last_successful_sync
+                else None
+            ),
+        }
+
+    @property
     def event(self) -> CalendarEvent | None:
         """Return the current or next scheduled event."""
         now = datetime.now(timezone.utc)

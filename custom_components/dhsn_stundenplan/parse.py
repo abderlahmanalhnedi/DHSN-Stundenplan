@@ -149,3 +149,80 @@ def parse_html(html: str, group: str) -> list[TimetableEvent]:
         raise ValueError("No valid timetable table in response")
     result.sort(key=start_as_utc)
     return result
+
+
+# Last-known-good cache format: only event data, never source HTML or cookies.
+MAX_CACHED_EVENTS = 2000
+MAX_CACHED_TEXT = 2000
+
+
+def encode_cached_timetable(
+    group: str, refreshed_at: datetime, events: list[TimetableEvent]
+) -> dict:
+    """Serialize a bounded copy of the last complete successful response."""
+    return {
+        "group": group,
+        "last_successful_sync": refreshed_at.astimezone(timezone.utc).isoformat(),
+        "events": [
+            {
+                "all_day": not isinstance(event.start, datetime),
+                "start": event.start.isoformat(),
+                "end": event.end.isoformat(),
+                "summary": event.summary,
+                "location": event.location,
+                "description": event.description,
+            }
+            for event in events[:MAX_CACHED_EVENTS]
+        ],
+    }
+
+
+def decode_cached_timetable(
+    payload: dict, expected_group: str
+) -> tuple[datetime, list[TimetableEvent]]:
+    """Reject corrupted/mismatched local cache files without exposing contents."""
+    if not isinstance(payload, dict) or payload.get("group") != expected_group:
+        raise ValueError("Invalid timetable cache group")
+    stamp = payload.get("last_successful_sync")
+    if not isinstance(stamp, str):
+        raise ValueError("Invalid timetable cache timestamp")
+    refreshed_at = datetime.fromisoformat(stamp)
+    if refreshed_at.tzinfo is None or refreshed_at.utcoffset() is None:
+        raise ValueError("Naive timetable cache timestamp")
+    raw_events = payload.get("events")
+    if not isinstance(raw_events, list) or len(raw_events) > MAX_CACHED_EVENTS:
+        raise ValueError("Invalid timetable cache events")
+    events = []
+    for raw in raw_events:
+        if not isinstance(raw, dict) or type(raw.get("all_day")) is not bool:
+            raise ValueError("Invalid timetable cache event")
+        fields = ("summary", "location", "description")
+        if any(
+            not isinstance(raw.get(field), str)
+            or len(raw[field]) > MAX_CACHED_TEXT
+            for field in fields
+        ):
+            raise ValueError("Invalid timetable cache text")
+        if not isinstance(raw.get("start"), str) or not isinstance(raw.get("end"), str):
+            raise ValueError("Invalid timetable cache dates")
+        if raw["all_day"]:
+            start = date.fromisoformat(raw["start"])
+            end = date.fromisoformat(raw["end"])
+        else:
+            start = datetime.fromisoformat(raw["start"])
+            end = datetime.fromisoformat(raw["end"])
+            if (
+                start.tzinfo is None
+                or start.utcoffset() is None
+                or end.tzinfo is None
+                or end.utcoffset() is None
+            ):
+                raise ValueError("Naive timetable cache event")
+        event = TimetableEvent(
+            start, end, raw["summary"], raw["location"], raw["description"]
+        )
+        if end_as_utc(event) <= start_as_utc(event):
+            raise ValueError("Invalid timetable cache duration")
+        events.append(event)
+    events.sort(key=start_as_utc)
+    return refreshed_at.astimezone(timezone.utc), events

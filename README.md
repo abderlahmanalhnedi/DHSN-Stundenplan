@@ -36,6 +36,8 @@ Diese Integration richtet sich an Studierende der **Dualen Hochschule Sachsen (D
 - Erstellt automatisch einen Kalender in Home Assistant.
 - Zeigt **Fächer, Datum/Uhrzeit, Räume und Dozenten** an, soweit die Quelle sie bereitstellt.
 - **Automatischer Abgleich alle 60 Minuten**; keine externe Cloud oder zusätzlicher Server erforderlich.
+- **Letzter gültiger Stundenplan bleibt erhalten**, wenn die Hochschule vorübergehend nicht antwortet, auch nach einem Home-Assistant-Neustart (privater lokaler Cache).
+- **Zwei Diagnose-Sensoren**: `Stundenplan ... Sync-Status` (`up_to_date` oder `stale`) und `Stundenplan ... Letzte erfolgreiche Synchronisierung` (Zeitstempel).
 - **Schreibgeschützt:** keine Änderungen am Hochschul-Stundenplan.
 - Keine Zugangsdaten, Cookies, Tokens, Tracking oder zentral gespeicherten Stundenpläne.
 
@@ -62,6 +64,8 @@ Prüfe, ob HACS seine Repository-Daten aktualisiert hat, und versuche die Suche 
 </details>
 
 **Bestehende manuelle Installation:** Vor dem Wechsel auf HACS bitte die Home-Assistant-Konfiguration sichern. Nicht zwei Kopien von `dhsn_stundenplan` parallel installieren. Die Migration bestehender Konfigurationen wurde noch nicht umfassend getestet.
+
+**Bei Ausfällen wichtig:** Der Kalender zeigt weiter die letzte erfolgreich heruntergeladene Version an. **Die angezeigten Termine können veraltet sein** (auch ausgefallene oder verschobene Vorlesungen). Der Sync-Status wechselt bei einem fehlgeschlagenen Abruf zu `stale`. Prüfe bei Zweifeln den Original-Stundenplan. Bei einer erstmaligen Einrichtung ohne einen erfolgreichen Abruf steht noch kein Cache zur Verfügung. Die lokale Kopie wird im privaten Home-Assistant-Speicher `.storage` verwahrt; sie wird beim Entfernen des Integrationseintrags gelöscht. Bereits erstellte Backups sind davon ausgenommen.
 
 **Für Dashboard-Nutzer:** Die Standard-Kalenderkarte oder `custom:calendar-card-pro` kann diese Kalender-Entität anzeigen. Wenn die nächsten Vorlesungen erst in mehreren Wochen stattfinden, muss der Anzeigezeitraum entsprechend erweitert werden (z. B. `days_to_show: 90`).
 
@@ -154,3 +158,8 @@ Source: `custom_components/dhsn_stundenplan/` · Synthetic offline tests: `tests
 
 ## License / Lizenz
 [MIT](LICENSE) applies to the original project code only. University timetable content, institutional names, designs and trademarks are not licensed by this repository.
+
+
+### Last known good timetable (English)
+
+After the first successful sync, the integration saves a locally private snapshot of the timetable in Home Assistant's `.storage` directory. If the university service becomes unreachable or returns a malformed page, the calendar continues showing the last successfully saved events, **which may be outdated**. The `Sync-Status` sensor reports `stale` while the source cannot be verified, and `Letzte erfolgreiche Synchronisierung` reports the timestamp of the last successful fetch. The next successful hourly fetch automatically replaces the saved snapshot. A first-time setup with no previous successful fetch cannot restore events. Removing the integration deletes its local cache, but Home Assistant backups may retain older copies.
