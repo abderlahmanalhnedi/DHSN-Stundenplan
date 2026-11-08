@@ -46,6 +46,20 @@ class TestParser(unittest.TestCase):
         data = json.loads(manifest.read_text(encoding="utf-8"))
         self.assertIn("beautifulsoup4>=4.15.0", data["requirements"])
 
+    def test_safe_validation_reason_for_unknown_values(self):
+        self.assertEqual(
+            MOD.safe_validation_reason(ValueError("Private html content")),
+            "Unexpected timetable structure",
+        )
+
+    def test_safe_validation_reason_for_known_values(self):
+        self.assertEqual(
+            MOD.safe_validation_reason(
+                ValueError("No valid timetable table in response")
+            ),
+            "No valid timetable table in response",
+        )
+
     def test_login_page_rejected(self):
         with self.assertRaises(ValueError):
             MOD.parse_html("<html>Login required</html>", "test-1")

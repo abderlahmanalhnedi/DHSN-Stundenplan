@@ -30,6 +30,28 @@ def text_by_class(element, cls):
     node = element.find(class_=cls)
     return node.get_text(" ", strip=True) if node else ""
 
+# Only constant, developer-authored error messages can reach Home Assistant logs.
+# Unexpected parser exceptions may contain remote HTML data, so do not log str(exc).
+SAFE_VALIDATION_REASONS = frozenset(
+    {
+        "Timetable response exceeds size limit",
+        "Timetable week does not start on Monday",
+        "Time range missing",
+        "Bad weekday column count",
+        "Invalid lecture rowspan",
+        "No valid timetable table in response",
+    }
+)
+
+
+def safe_validation_reason(error: ValueError) -> str:
+    """Return a safe diagnostic reason without reflecting response content."""
+    reason = str(error)
+    if reason in SAFE_VALIDATION_REASONS:
+        return reason
+    return "Unexpected timetable structure"
+
+
 
 def start_as_utc(event: TimetableEvent) -> datetime:
     start = event.start
