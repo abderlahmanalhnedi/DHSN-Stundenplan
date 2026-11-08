@@ -4,14 +4,16 @@
     "step": {
       "user": {
         "title": "DHSN Stundenplan",
-        "description": "Unabhängiges, inoffizielles Projekt für die Duale Hochschule Sachsen. Die Eingabe der Seminargruppe startet regelmäßige direkte Anfragen an einen externen Stundenplanserver. Nur bei erlaubter Nutzung verwenden; eine Freigabe des Betreibers ist nicht bestätigt.",
+        "description": "Unabhängiges, inoffizielles Projekt für Dresden. Nach der Einrichtung erfolgen stündliche direkte Anfragen an einen externen Stundenplanserver. Eine Erlaubnis des Betreibers ist nicht bestätigt. Bitte vor der Einrichtung dessen Vorgaben prüfen.",
         "data": {
-          "group": "Seminargruppe (z. B. 3spXX-1)"
+          "group": "Seminargruppe (z. B. 3spXX-1)",
+          "authorization_acknowledged": "Ich habe die Vorgaben des Betreibers geprüft und bestätige, dass automatisierte Stundenplanabfragen für meine Nutzung erlaubt sind."
         }
       }
     },
     "error": {
-      "invalid_group": "Bitte gültige Seminargruppe eingeben (Buchstaben, Zahlen, - oder _)."
+      "invalid_group": "Bitte gültige Seminargruppe eingeben (Buchstaben, Zahlen, - oder _).",
+      "authorization_required": "Bitte zuerst bestätigen, dass du die Vorgaben des Stundenplanbetreibers geprüft hast."
     }
   }
 }
