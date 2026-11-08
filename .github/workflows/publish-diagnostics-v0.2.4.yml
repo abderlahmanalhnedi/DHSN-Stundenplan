@@ -1,0 +1,38 @@
+name: Publish diagnostic update v0.2.4
+
+on:
+  workflow_run:
+    workflows: ["Validate"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish tested commit as v0.2.4
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          CURRENT_SHA="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$VERIFIED_SHA" ]; then
+            echo "Validation belongs to an older commit; skip."
+            exit 0
+          fi
+
+          if gh release view v0.2.4 >/dev/null 2>&1; then
+            echo "v0.2.4 already exists; skip."
+            exit 0
+          fi
+
+          gh release create v0.2.4 \
+            --target "$VERIFIED_SHA" \
+            --title "v0.2.4 - Better timetable validation diagnostics" \
+            --notes "Diagnostic release for DHSN Stundenplan. When timetable fetching returns an unexpected page or malformed schedule, Home Assistant logs now show a predefined, sanitized reason (such as No valid timetable table in response, Time range missing, or Bad weekday column count), instead of the generic ValueError. DEBUG logs also show the number of parsed calendar events. No university HTML, credentials, URLs with group identifiers, or arbitrary server response text is logged. Timetable endpoint, hourly update interval, seminar group setup and calendar entity IDs remain unchanged. This release does not yet fix the underlying timetable failure: please share the new safe error reason in your Home Assistant logs after upgrading. Not affiliated with or endorsed by DHSN."
