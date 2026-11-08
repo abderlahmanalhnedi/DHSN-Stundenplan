@@ -7,6 +7,7 @@ HTML to disk nor includes timetable details, tokens, or lecturer names in logs.
 """
 
 import argparse
+import asyncio
 import importlib.util
 from pathlib import Path
 import sys
@@ -66,29 +67,53 @@ def summarize(html: str, group: str) -> None:
     print("Diagnostic note: source HTML is not saved or printed.")
 
 
+async def aiohttp_fetch(url: str) -> tuple[int, str]:
+    """Match Home Assistant's default aiohttp request with no spoofed headers."""
+    from aiohttp import ClientSession, ClientTimeout
+
+    async with ClientSession() as session:
+        async with session.get(
+            url, timeout=ClientTimeout(total=25), allow_redirects=False
+        ) as response:
+            response.raise_for_status()
+            raw = await response.content.read(MAX_RESPONSE_BYTES + 1)
+            if len(raw) > MAX_RESPONSE_BYTES:
+                raise ValueError("Response exceeds size limit")
+            return response.status, raw.decode(response.charset or "utf-8", errors="replace")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--group", required=True)
+    parser.add_argument(
+        "--transport", choices=["urllib", "aiohttp"], default="urllib",
+        help="aiohttp uses the same request defaults as Home Assistant",
+    )
     args = parser.parse_args()
     import re
     if not re.fullmatch(r"[A-Za-z0-9_-]{2,30}", args.group):
         parser.error("Invalid seminar group format")
     params = urlencode({"akttyp": "1", "aktwert": args.group, "legendefach": "on"})
-    req = Request(BASE_URL + "?" + params, headers={"User-Agent": "Mozilla/5.0"})
+    url = BASE_URL + "?" + params
     try:
-        with urlopen(req, timeout=25) as response:
-            status = response.status
-            if response.headers.get("Content-Length"):
-                if int(response.headers["Content-Length"]) > MAX_RESPONSE_BYTES:
+        if args.transport == "aiohttp":
+            status, html = asyncio.run(aiohttp_fetch(url))
+        else:
+            req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urlopen(req, timeout=25) as response:
+                status = response.status
+                if response.headers.get("Content-Length"):
+                    if int(response.headers["Content-Length"]) > MAX_RESPONSE_BYTES:
+                        raise ValueError("Response exceeds size limit")
+                raw = response.read(MAX_RESPONSE_BYTES + 1)
+                if len(raw) > MAX_RESPONSE_BYTES:
                     raise ValueError("Response exceeds size limit")
-            raw = response.read(MAX_RESPONSE_BYTES + 1)
-            if len(raw) > MAX_RESPONSE_BYTES:
-                raise ValueError("Response exceeds size limit")
-            charset = response.headers.get_content_charset() or "utf-8"
-            html = raw.decode(charset, errors="replace")
+                charset = response.headers.get_content_charset() or "utf-8"
+                html = raw.decode(charset, errors="replace")
     except Exception as exc:
         print("Fetch failed:", type(exc).__name__)
         return 1
+    print("Transport:", args.transport)
     print("HTTP status:", status)
     summarize(html, args.group)
     return 0

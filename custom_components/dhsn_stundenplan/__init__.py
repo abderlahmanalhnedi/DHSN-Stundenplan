@@ -49,6 +49,8 @@ class TimetableCoordinator(DataUpdateCoordinator):
         self.last_response_week_tables: int | None = None
         self.last_response_recognized_weeks: int | None = None
         self.last_response_event_count: int | None = None
+        self.last_http_status: int | None = None
+        self.last_failure_reason: str | None = None
         # Scope the private local cache to this individual config entry.
         self.store = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}", private=True
@@ -86,6 +88,11 @@ class TimetableCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch and parse, never replacing a valid cache with failed responses."""
+        self.last_response_week_tables = None
+        self.last_response_recognized_weeks = None
+        self.last_response_event_count = None
+        self.last_http_status = None
+        self.last_failure_reason = None
         try:
             session = async_get_clientsession(self.hass)
             async with session.get(
@@ -93,6 +100,7 @@ class TimetableCoordinator(DataUpdateCoordinator):
                 timeout=ClientTimeout(total=25),
                 allow_redirects=False,
             ) as response:
+                self.last_http_status = response.status
                 response.raise_for_status()
                 if response.content_length and response.content_length > MAX_RESPONSE_BYTES:
                     raise ValueError("Timetable response exceeds size limit")
@@ -116,12 +124,14 @@ class TimetableCoordinator(DataUpdateCoordinator):
             ):
                 raise ValueError("Timetable future coverage unexpectedly shortened")
         except ValueError as exc:
+            self.last_failure_reason = safe_validation_reason(exc)
             raise UpdateFailed(
-                f"Timetable validation failed: {safe_validation_reason(exc)}"
+                f"Timetable validation failed: {self.last_failure_reason}"
             ) from exc
         except (ClientError, asyncio.TimeoutError, OSError, UnicodeError) as exc:
+            self.last_failure_reason = type(exc).__name__
             raise UpdateFailed(
-                f"Timetable request failed: {type(exc).__name__}"
+                f"Timetable request failed: {self.last_failure_reason}"
             ) from exc
 
         # Only a complete valid parse can replace the old snapshot.
