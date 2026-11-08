@@ -51,6 +51,11 @@ class DHSNCalendar(CoordinatorEntity, CalendarEntity):
                 "up_to_date" if self.coordinator.last_update_success else "stale"
             ),
             "event_count": len(self.coordinator.data or []),
+            "last_response_event_count": self.coordinator.last_response_event_count,
+            "last_response_week_tables": self.coordinator.last_response_week_tables,
+            "last_response_recognized_weeks": (
+                self.coordinator.last_response_recognized_weeks
+            ),
             "last_successful_sync": (
                 self.coordinator.last_successful_sync.isoformat()
                 if self.coordinator.last_successful_sync

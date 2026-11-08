@@ -4,14 +4,16 @@
     "step": {
       "user": {
         "title": "DHSN Stundenplan",
-        "description": "Independent, unofficial project for Duale Hochschule Sachsen. Entering the seminar group starts periodic direct requests to an external timetable server. Only use where authorized; operator approval has not been confirmed.",
+        "description": "Independent unofficial Dresden timetable project. Setup starts hourly direct requests to an external server. The maintainer has not confirmed the operator's permission. Please check the operator's access rules before continuing.",
         "data": {
-          "group": "Seminar group (e.g. 3spXX-1)"
+          "group": "Seminar group (e.g. 3spXX-1)",
+          "authorization_acknowledged": "I have checked the operator's rules and confirm that automated timetable access is permitted for my use."
         }
       }
     },
     "error": {
-      "invalid_group": "Please enter a valid group (letters, digits, hyphens, underscores)."
+      "invalid_group": "Please enter a valid group (letters, digits, hyphens, underscores).",
+      "authorization_required": "Please confirm that you have verified the timetable operator's access rules."
     }
   }
 }

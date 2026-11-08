@@ -54,6 +54,13 @@ class DHSNSyncStatusSensor(CoordinatorEntity, SensorEntity):
                 else None
             ),
             "event_count": len(self.coordinator.data or []),
+            "last_response_event_count": self.coordinator.last_response_event_count,
+            "last_http_status": self.coordinator.last_http_status,
+            "last_failure_reason": self.coordinator.last_failure_reason,
+            "last_response_week_tables": self.coordinator.last_response_week_tables,
+            "last_response_recognized_weeks": (
+                self.coordinator.last_response_recognized_weeks
+            ),
         }
 
 

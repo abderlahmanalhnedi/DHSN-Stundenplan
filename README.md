@@ -155,6 +155,14 @@ Home Assistant 2026.3+ supports local integration branding through `custom_compo
 
 **Deutsch:** Das Integrationssymbol wird lokal mitgeliefert. Falls nur HACS „Icon not available“ anzeigt, kann dies an einem bekannten Darstellungsproblem von HACS liegen, nicht an der Integration selbst.
 
+## Known multiweek sync issue / Bekannter Synchronisationsfehler
+
+**Deutsch (Test am 8. November 2026):** Eine erfolgreiche HTTP-200-Antwort kann einen unvollständigen Plan enthalten. Ein Nutzer erhielt im Einzelabruf mit `urllib` **8 Wochentabellen und 62 Termine**, mit standardmäßigem `aiohttp` dagegen **3 Tabellen und 10 Termine** und mit Browser-`User-Agent` plus `aiohttp` sogar nur **1 Tabelle und 0 Termine**. **Der User-Agent allein ist also keine bestätigte Lösung.** Der HTML-Parser extrahierte jeweils korrekt, was er erhalten hatte. Bis zur Klärung kann die letzte gespeicherte Kalenderansicht veraltet oder unvollständig sein. Bitte bei wichtigen Änderungen den Originalplan prüfen.
+
+**English:** HTTP 200 does not prove a complete timetable. Separate read-only tests returned **8 weeks/62 events** (`urllib`), **3 weeks/10 events** (default `aiohttp`), and **1 week/0 events** (`aiohttp` with browser User-Agent). Therefore changing only the User-Agent is **not** a demonstrated fix. The experimental reliability changes are tracked in a draft PR, not in a published release.
+
+**New setup acknowledgement / Hinweis bei neuer Einrichtung:** The development branch requires users to explicitly confirm they have checked the operator's access rules before an initial scheduled fetch. This does **not** constitute university approval; previously configured Dresden entities are not changed. See [MAINTENANCE_PLAN.md](MAINTENANCE_PLAN.md).
+
 ## Development / Entwicklung
 Source: `custom_components/dhsn_stundenplan/` · Synthetic offline tests: `tests/`. HACS and hassfest validation run using GitHub Actions. This is an experimental community project; please test carefully before relying on it.
 
@@ -168,3 +176,8 @@ After the first successful sync, the integration saves a locally private snapsho
 
 
 **English / v0.2.6 safety rule:** A response that parses to zero timetable events is no longer marked as a successful sync or allowed to overwrite saved events. `event_count` is exposed on the calendar and sync status sensor. A genuinely empty timetable may consequently remain flagged as `stale` until an authoritative empty-state signal can be validated. If v0.2.5 already replaced the snapshot with an empty one, the original events cannot be reconstructed from that snapshot alone.
+
+
+### Detecting incomplete week responses (planned 0.2.7)
+
+When the source page returns fewer future weeks than a previously successful snapshot, the integration rejects the unusually shortened coverage rather than overwriting existing calendar data. Source diagnostics expose `last_response_week_tables`, `last_response_recognized_weeks`, and `last_response_event_count` alongside the cached `event_count`. The counts do **not** expose HTML or student credentials and should help distinguish a shortened university response from missing table captions. A reduced timetable may also be legitimate, so Home Assistant keeps the older events marked `stale` until a later successful refresh. This feature does not reconstruct missing weeks when the existing cached timetable already has only one week.

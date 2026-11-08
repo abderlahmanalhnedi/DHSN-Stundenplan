@@ -37,6 +37,27 @@ class TestParser(unittest.TestCase):
         html = HTML.replace('class="Vorlesung"', 'class="Freizeit"')
         self.assertEqual(MOD.parse_html(html, "test-1"), [])
 
+    def test_empty_week_is_rejected_as_successful_update(self):
+        empty = HTML.replace('class="Vorlesung"', 'class="Freizeit"')
+        self.assertEqual(MOD.week_table_counts(empty), (1, 1))
+        events = MOD.parse_html(empty, "test-1")
+        self.assertEqual(events, [])
+        with self.assertRaisesRegex(ValueError, "No timetable events parsed"):
+            MOD.require_nonempty_timetable(events)
+
+    def test_eight_synthetic_weeks_parse_without_network(self):
+        from datetime import date, timedelta
+        monday = date(2026, 11, 9)
+        pages = []
+        for i in range(8):
+            start = monday + timedelta(weeks=i)
+            end = start + timedelta(days=6)
+            caption = f"{46+i}. Woche vom {start.day}.{start.month}.{start.year}-{end.day}.{end.month}.{end.year}"
+            pages.append(HTML.replace("46. Woche vom 9.11.2026-15.11.2026", caption))
+        document = "\n".join(pages)
+        self.assertEqual(MOD.week_table_counts(document), (8, 8))
+        self.assertEqual(len(MOD.parse_html(document, "test-1")), 8)
+
     def test_manifest_declares_parser_dependency(self):
         import json
         manifest = (
@@ -102,6 +123,49 @@ class TestParser(unittest.TestCase):
         self.assertEqual(
             MOD.safe_validation_reason(ValueError("No timetable events parsed")),
             "No timetable events parsed",
+        )
+
+    def test_multiple_seminar_weeks_are_parsed(self):
+        second = HTML.replace(
+            "46. Woche vom 9.11.2026-15.11.2026",
+            "47. Woche vom 16.11.2026-22.11.2026",
+        )
+        combined = HTML + second
+        self.assertEqual(len(MOD.parse_html(combined, "test-1")), 2)
+        self.assertEqual(MOD.week_table_counts(combined), (2, 2))
+
+    def test_captions_with_en_dash_are_readable(self):
+        html = HTML.replace(
+            "9.11.2026-15.11.2026", "9.11.2026–15.11.2026"
+        )
+        self.assertEqual(len(MOD.parse_html(html, "test-1")), 1)
+
+    def test_unknown_week_caption_cannot_be_silently_skipped(self):
+        second = HTML.replace(
+            "46. Woche vom 9.11.2026-15.11.2026",
+            "47. Woche 16.11.2026 bis 22.11.2026",
+        )
+        with self.assertRaisesRegex(
+            ValueError, "Timetable week header not recognized"
+        ):
+            MOD.parse_html(HTML + second, "test-1")
+
+    def test_shrinking_future_coverage_protected(self):
+        from datetime import datetime, timezone
+        original = MOD.parse_html(
+            HTML.replace(
+                "46. Woche vom 9.11.2026-15.11.2026",
+                "50. Woche vom 7.12.2026-13.12.2026",
+            ),
+            "test-1",
+        )
+        partial = MOD.parse_html(HTML, "test-1")
+        now = datetime(2026, 11, 8, 20, 0, tzinfo=timezone.utc)
+        self.assertTrue(
+            MOD.would_lose_future_coverage(original, partial, now)
+        )
+        self.assertFalse(
+            MOD.would_lose_future_coverage(partial, original, now)
         )
 
     def test_cache_round_trip_lecture_and_timestamp(self):
