@@ -60,6 +60,50 @@ class TestParser(unittest.TestCase):
             "No valid timetable table in response",
         )
 
+    def test_rows_nested_in_tbody_are_recognized(self):
+        html = HTML.replace(
+            '<tr><th>Zeit</th>',
+            '<tbody><tr><th>Zeit</th>',
+        ).replace('</table>', '</tbody></table>')
+        events = MOD.parse_html(html, "test-1")
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].summary, "DEMO")
+
+    def test_non_slot_footer_does_not_break_timetable(self):
+        html = HTML.replace(
+            '</table>',
+            '<tr><th>Stand: 08.11.2026</th><td colspan="5">'
+            'Hinweis zur Planung</td></tr></table>',
+        )
+        self.assertEqual(len(MOD.parse_html(html, "test-1")), 1)
+
+    def test_en_dash_time_range(self):
+        html = HTML.replace("07:45 - 09:15", "07:45 – 09:15")
+        self.assertEqual(len(MOD.parse_html(html, "test-1")), 1)
+
+    def test_lecture_with_missing_time_range_is_rejected(self):
+        html = HTML.replace("07:45 - 09:15", "unknown time")
+        with self.assertRaisesRegex(ValueError, "Time range missing"):
+            MOD.parse_html(html, "test-1")
+
+    def test_empty_result_must_not_overwrite_last_good_data(self):
+        empty_events = MOD.parse_html(
+            HTML.replace('class="Vorlesung"', 'class="Freizeit"'), "test-1"
+        )
+        self.assertEqual(empty_events, [])
+        with self.assertRaisesRegex(ValueError, "No timetable events parsed"):
+            MOD.require_nonempty_timetable(empty_events)
+
+    def test_nonempty_result_passes_validation(self):
+        events = MOD.parse_html(HTML, "test-1")
+        self.assertIs(MOD.require_nonempty_timetable(events), events)
+
+    def test_empty_result_has_a_safe_error_reason(self):
+        self.assertEqual(
+            MOD.safe_validation_reason(ValueError("No timetable events parsed")),
+            "No timetable events parsed",
+        )
+
     def test_cache_round_trip_lecture_and_timestamp(self):
         from datetime import datetime, timezone
         events = MOD.parse_html(HTML, "test-1")

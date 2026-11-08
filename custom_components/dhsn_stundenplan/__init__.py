@@ -20,6 +20,7 @@ from .parse import (
     decode_cached_timetable,
     encode_cached_timetable,
     parse_html,
+    require_nonempty_timetable,
     safe_validation_reason,
 )
 
@@ -58,6 +59,15 @@ class TimetableCoordinator(DataUpdateCoordinator):
             if saved is None:
                 return
             restored_at, events = decode_cached_timetable(saved, self.group)
+            if not events:
+                # Older releases could overwrite a good snapshot with an
+                # incorrectly parsed empty page. Do not trust that snapshot
+                # as evidence of a successful timetable download.
+                self.data = []
+                _LOGGER.warning(
+                    "Cached DHSN timetable is empty; awaiting a valid refresh"
+                )
+                return
         except Exception as exc:  # Storage can fail due to unreadable files.
             _LOGGER.warning(
                 "Could not restore cached DHSN timetable (%s)",
@@ -87,6 +97,9 @@ class TimetableCoordinator(DataUpdateCoordinator):
                 html = raw.decode(response.charset or "utf-8", errors="replace")
 
             events = await self.hass.async_add_executor_job(parse_html, html, self.group)
+            # A syntactically valid table with no recognized events can be a
+            # changed university page; it must never replace good calendar data.
+            require_nonempty_timetable(events)
         except ValueError as exc:
             raise UpdateFailed(
                 f"Timetable validation failed: {safe_validation_reason(exc)}"
