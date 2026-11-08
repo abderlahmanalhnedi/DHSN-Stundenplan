@@ -60,6 +60,65 @@ class TestParser(unittest.TestCase):
             "No valid timetable table in response",
         )
 
+    def test_cache_round_trip_lecture_and_timestamp(self):
+        from datetime import datetime, timezone
+        events = MOD.parse_html(HTML, "test-1")
+        stamp = datetime(2026, 11, 8, 11, 0, tzinfo=timezone.utc)
+        saved = MOD.encode_cached_timetable("test-1", stamp, events)
+        actual_stamp, restored = MOD.decode_cached_timetable(saved, "test-1")
+        self.assertEqual(actual_stamp, stamp)
+        self.assertEqual(restored, events)
+
+    def test_cache_valid_empty_timetable(self):
+        from datetime import datetime, timezone
+        stamp = datetime(2026, 11, 8, 11, 0, tzinfo=timezone.utc)
+        saved = MOD.encode_cached_timetable("test-1", stamp, [])
+        actual_stamp, restored = MOD.decode_cached_timetable(saved, "test-1")
+        self.assertEqual(actual_stamp, stamp)
+        self.assertEqual(restored, [])
+
+    def test_cache_round_trip_all_day_holiday(self):
+        from datetime import datetime, timezone
+        html = HTML.replace('class="Vorlesung"', 'class="Feiertag"')
+        events = MOD.parse_html(html, "test-1")
+        stamp = datetime(2026, 11, 8, 11, 0, tzinfo=timezone.utc)
+        saved = MOD.encode_cached_timetable("test-1", stamp, events)
+        _, restored = MOD.decode_cached_timetable(saved, "test-1")
+        self.assertEqual(restored, events)
+
+    def test_cache_rejects_wrong_group_and_malformed_data(self):
+        from datetime import datetime, timezone
+        stamp = datetime(2026, 11, 8, 11, 0, tzinfo=timezone.utc)
+        saved = MOD.encode_cached_timetable(
+            "test-1", stamp, MOD.parse_html(HTML, "test-1")
+        )
+        with self.assertRaises(ValueError):
+            MOD.decode_cached_timetable(saved, "another-group")
+        saved["events"][0]["start"] = "not-a-date"
+        with self.assertRaises(ValueError):
+            MOD.decode_cached_timetable(saved, "test-1")
+
+    def test_cache_rejects_naive_timestamp(self):
+        from datetime import datetime, timezone
+        stamp = datetime(2026, 11, 8, 11, 0, tzinfo=timezone.utc)
+        saved = MOD.encode_cached_timetable("test-1", stamp, [])
+        saved["last_successful_sync"] = "2026-11-08T11:00:00"
+        with self.assertRaises(ValueError):
+            MOD.decode_cached_timetable(saved, "test-1")
+
+    def test_cache_rejects_naive_event_and_invalid_duration(self):
+        from datetime import datetime, timezone
+        stamp = datetime(2026, 11, 8, 11, 0, tzinfo=timezone.utc)
+        saved = MOD.encode_cached_timetable(
+            "test-1", stamp, MOD.parse_html(HTML, "test-1")
+        )
+        saved["events"][0]["end"] = "2026-11-09T09:15:00"
+        with self.assertRaises(ValueError):
+            MOD.decode_cached_timetable(saved, "test-1")
+        saved["events"][0]["end"] = saved["events"][0]["start"]
+        with self.assertRaises(ValueError):
+            MOD.decode_cached_timetable(saved, "test-1")
+
     def test_login_page_rejected(self):
         with self.assertRaises(ValueError):
             MOD.parse_html("<html>Login required</html>", "test-1")
