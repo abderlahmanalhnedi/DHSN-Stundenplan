@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 BERLIN = ZoneInfo("Europe/Berlin")
 TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\s*[-–—−]\s*(\d{1,2}:\d{2})\b")
 WEEK_RE = re.compile(
-    r"\bvom\s+(\d{1,2}\.\d{1,2}\.\d{4})\s*-\s*(\d{1,2}\.\d{1,2}\.\d{4})",
+    r"\bvom\s+(\d{1,2}\.\d{1,2}\.\d{4})\s*[-–—−]\s*(\d{1,2}\.\d{1,2}\.\d{4})",
     re.I,
 )
 
@@ -41,6 +41,8 @@ SAFE_VALIDATION_REASONS = frozenset(
         "Invalid lecture rowspan",
         "No valid timetable table in response",
         "No timetable events parsed",
+        "Timetable week header not recognized",
+        "Timetable future coverage unexpectedly shortened",
     }
 )
 
@@ -78,6 +80,10 @@ def parse_html(html: str, group: str) -> list[TimetableEvent]:
         caption = table.find("caption")
         week_match = WEEK_RE.search(caption.get_text(" ", strip=True)) if caption else None
         if not week_match:
+            # Do not silently skip published weeks if the university changes
+            # the week caption's punctuation or layout.
+            if caption and re.search(r"\bWoche\b", caption.get_text(" ", strip=True), re.I):
+                raise ValueError("Timetable week header not recognized")
             continue
         weeks_seen += 1
         week_start = datetime.strptime(week_match.group(1), "%d.%m.%Y").date()
@@ -168,6 +174,40 @@ def parse_html(html: str, group: str) -> list[TimetableEvent]:
         raise ValueError("No valid timetable table in response")
     result.sort(key=start_as_utc)
     return result
+
+
+
+def week_table_counts(html: str) -> tuple[int, int]:
+    """Count source weekly tables without exposing their HTML or lecturer data."""
+    soup = BeautifulSoup(html, "html.parser")
+    tables = soup.select("table.Plan")
+    recognized = 0
+    for table in tables:
+        caption = table.find("caption")
+        if caption and WEEK_RE.search(caption.get_text(" ", strip=True)):
+            recognized += 1
+    return len(tables), recognized
+
+
+def would_lose_future_coverage(
+    existing: list[TimetableEvent],
+    incoming: list[TimetableEvent],
+    now: datetime,
+) -> bool:
+    """Keep the last good timetable if a smaller response loses future weeks.
+
+    Only protect genuinely future coverage: naturally expired semesters are
+    permitted to roll over. This is a conservative heuristic, not proof that
+    the university still plans the old events.
+    """
+    if not existing or not incoming:
+        return False
+    last_existing = max(end_as_utc(event) for event in existing)
+    last_incoming = max(end_as_utc(event) for event in incoming)
+    return (
+        last_existing > now.astimezone(timezone.utc) + timedelta(days=7)
+        and last_incoming + timedelta(days=7) < last_existing
+    )
 
 
 def require_nonempty_timetable(events: list[TimetableEvent]) -> list[TimetableEvent]:

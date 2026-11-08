@@ -22,6 +22,8 @@ from .parse import (
     parse_html,
     require_nonempty_timetable,
     safe_validation_reason,
+    week_table_counts,
+    would_lose_future_coverage,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,6 +46,9 @@ class TimetableCoordinator(DataUpdateCoordinator):
         )
         self.group = group
         self.last_successful_sync: datetime | None = None
+        self.last_response_week_tables: int | None = None
+        self.last_response_recognized_weeks: int | None = None
+        self.last_response_event_count: int | None = None
         # Scope the private local cache to this individual config entry.
         self.store = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}", private=True
@@ -96,10 +101,20 @@ class TimetableCoordinator(DataUpdateCoordinator):
                     raise ValueError("Timetable response exceeds size limit")
                 html = raw.decode(response.charset or "utf-8", errors="replace")
 
+            tables, recognized = await self.hass.async_add_executor_job(
+                week_table_counts, html
+            )
+            self.last_response_week_tables = tables
+            self.last_response_recognized_weeks = recognized
             events = await self.hass.async_add_executor_job(parse_html, html, self.group)
+            self.last_response_event_count = len(events)
             # A syntactically valid table with no recognized events can be a
             # changed university page; it must never replace good calendar data.
             require_nonempty_timetable(events)
+            if would_lose_future_coverage(
+                self.data or [], events, datetime.now(timezone.utc)
+            ):
+                raise ValueError("Timetable future coverage unexpectedly shortened")
         except ValueError as exc:
             raise UpdateFailed(
                 f"Timetable validation failed: {safe_validation_reason(exc)}"
@@ -119,7 +134,12 @@ class TimetableCoordinator(DataUpdateCoordinator):
             _LOGGER.warning(
                 "Could not save cached DHSN timetable (%s)", type(exc).__name__
             )
-        _LOGGER.debug("Parsed DHSN timetable: %s events", len(events))
+        _LOGGER.debug(
+            "Parsed DHSN timetable: %s events from %s/%s recognized week tables",
+            len(events),
+            self.last_response_recognized_weeks,
+            self.last_response_week_tables,
+        )
         return events
 
 

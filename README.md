@@ -168,3 +168,8 @@ After the first successful sync, the integration saves a locally private snapsho
 
 
 **English / v0.2.6 safety rule:** A response that parses to zero timetable events is no longer marked as a successful sync or allowed to overwrite saved events. `event_count` is exposed on the calendar and sync status sensor. A genuinely empty timetable may consequently remain flagged as `stale` until an authoritative empty-state signal can be validated. If v0.2.5 already replaced the snapshot with an empty one, the original events cannot be reconstructed from that snapshot alone.
+
+
+### Detecting incomplete week responses (planned 0.2.7)
+
+When the source page returns fewer future weeks than a previously successful snapshot, the integration rejects the unusually shortened coverage rather than overwriting existing calendar data. Source diagnostics expose `last_response_week_tables`, `last_response_recognized_weeks`, and `last_response_event_count` alongside the cached `event_count`. The counts do **not** expose HTML or student credentials and should help distinguish a shortened university response from missing table captions. A reduced timetable may also be legitimate, so Home Assistant keeps the older events marked `stale` until a later successful refresh. This feature does not reconstruct missing weeks when the existing cached timetable already has only one week.
