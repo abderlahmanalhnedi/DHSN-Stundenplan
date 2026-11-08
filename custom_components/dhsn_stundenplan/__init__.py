@@ -15,7 +15,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import BASE_URL, CONF_GROUP, DOMAIN
+from .const import BASE_URL, CONF_GROUP, DOMAIN, TIMETABLE_HEADERS
 from .parse import (
     decode_cached_timetable,
     encode_cached_timetable,
@@ -97,6 +97,7 @@ class TimetableCoordinator(DataUpdateCoordinator):
             session = async_get_clientsession(self.hass)
             async with session.get(
                 self.url,
+                headers=TIMETABLE_HEADERS,
                 timeout=ClientTimeout(total=25),
                 allow_redirects=False,
             ) as response:

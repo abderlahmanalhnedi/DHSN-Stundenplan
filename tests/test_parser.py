@@ -37,6 +37,14 @@ class TestParser(unittest.TestCase):
         html = HTML.replace('class="Vorlesung"', 'class="Freizeit"')
         self.assertEqual(MOD.parse_html(html, "test-1"), [])
 
+    def test_request_headers_use_minimal_browser_user_agent(self):
+        import importlib.util
+        const_path = PARSER.with_name("const.py")
+        spec = importlib.util.spec_from_file_location("dhsn_test_const", const_path)
+        const = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(const)
+        self.assertEqual(const.TIMETABLE_HEADERS, {"User-Agent": "Mozilla/5.0"})
+
     def test_manifest_declares_parser_dependency(self):
         import json
         manifest = (

@@ -23,6 +23,13 @@ MOD = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MOD
 SPEC.loader.exec_module(MOD)
 
+CONST_SPEC = importlib.util.spec_from_file_location(
+    "dhsn_diagnostic_const",
+    ROOT / "custom_components" / "dhsn_stundenplan" / "const.py",
+)
+CONSTS = importlib.util.module_from_spec(CONST_SPEC)
+CONST_SPEC.loader.exec_module(CONSTS)
+
 BASE_URL = "https://stundenplan.ba-dresden.de/stundenplan/PlanServlet"
 MAX_RESPONSE_BYTES = 3_000_000
 
@@ -67,13 +74,18 @@ def summarize(html: str, group: str) -> None:
     print("Diagnostic note: source HTML is not saved or printed.")
 
 
-async def aiohttp_fetch(url: str) -> tuple[int, str]:
-    """Match Home Assistant's default aiohttp request with no spoofed headers."""
+async def aiohttp_fetch(
+    url: str, use_browser_user_agent: bool = False
+) -> tuple[int, str]:
+    """Compare aiohttp defaults with the minimal browser User-Agent."""
     from aiohttp import ClientSession, ClientTimeout
 
     async with ClientSession() as session:
         async with session.get(
-            url, timeout=ClientTimeout(total=25), allow_redirects=False
+            url,
+            headers=CONSTS.TIMETABLE_HEADERS if use_browser_user_agent else None,
+            timeout=ClientTimeout(total=25),
+            allow_redirects=False,
         ) as response:
             response.raise_for_status()
             raw = await response.content.read(MAX_RESPONSE_BYTES + 1)
@@ -87,7 +99,12 @@ def main() -> int:
     parser.add_argument("--group", required=True)
     parser.add_argument(
         "--transport", choices=["urllib", "aiohttp"], default="urllib",
-        help="aiohttp uses the same request defaults as Home Assistant",
+        help="aiohttp without --browser-user-agent uses default request headers",
+    )
+    parser.add_argument(
+        "--browser-user-agent",
+        action="store_true",
+        help="Send the same minimal browser UA as the successful urllib test",
     )
     args = parser.parse_args()
     import re
@@ -97,9 +114,11 @@ def main() -> int:
     url = BASE_URL + "?" + params
     try:
         if args.transport == "aiohttp":
-            status, html = asyncio.run(aiohttp_fetch(url))
+            status, html = asyncio.run(
+                aiohttp_fetch(url, use_browser_user_agent=args.browser_user_agent)
+            )
         else:
-            req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            req = Request(url, headers=CONSTS.TIMETABLE_HEADERS)
             with urlopen(req, timeout=25) as response:
                 status = response.status
                 if response.headers.get("Content-Length"):
@@ -114,6 +133,10 @@ def main() -> int:
         print("Fetch failed:", type(exc).__name__)
         return 1
     print("Transport:", args.transport)
+    print(
+        "User-Agent:",
+        "browser" if args.transport == "urllib" or args.browser_user_agent else "default",
+    )
     print("HTTP status:", status)
     summarize(html, args.group)
     return 0
