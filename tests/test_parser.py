@@ -37,13 +37,26 @@ class TestParser(unittest.TestCase):
         html = HTML.replace('class="Vorlesung"', 'class="Freizeit"')
         self.assertEqual(MOD.parse_html(html, "test-1"), [])
 
-    def test_request_headers_use_minimal_browser_user_agent(self):
-        import importlib.util
-        const_path = PARSER.with_name("const.py")
-        spec = importlib.util.spec_from_file_location("dhsn_test_const", const_path)
-        const = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(const)
-        self.assertEqual(const.TIMETABLE_HEADERS, {"User-Agent": "Mozilla/5.0"})
+    def test_empty_week_is_rejected_as_successful_update(self):
+        empty = HTML.replace('class="Vorlesung"', 'class="Freizeit"')
+        self.assertEqual(MOD.week_table_counts(empty), (1, 1))
+        events = MOD.parse_html(empty, "test-1")
+        self.assertEqual(events, [])
+        with self.assertRaisesRegex(ValueError, "No timetable events parsed"):
+            MOD.require_nonempty_timetable(events)
+
+    def test_eight_synthetic_weeks_parse_without_network(self):
+        from datetime import date, timedelta
+        monday = date(2026, 11, 9)
+        pages = []
+        for i in range(8):
+            start = monday + timedelta(weeks=i)
+            end = start + timedelta(days=6)
+            caption = f"{46+i}. Woche vom {start.day}.{start.month}.{start.year}-{end.day}.{end.month}.{end.year}"
+            pages.append(HTML.replace("46. Woche vom 9.11.2026-15.11.2026", caption))
+        document = "\n".join(pages)
+        self.assertEqual(MOD.week_table_counts(document), (8, 8))
+        self.assertEqual(len(MOD.parse_html(document, "test-1")), 8)
 
     def test_manifest_declares_parser_dependency(self):
         import json

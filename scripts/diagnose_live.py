@@ -23,12 +23,8 @@ MOD = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MOD
 SPEC.loader.exec_module(MOD)
 
-CONST_SPEC = importlib.util.spec_from_file_location(
-    "dhsn_diagnostic_const",
-    ROOT / "custom_components" / "dhsn_stundenplan" / "const.py",
-)
-CONSTS = importlib.util.module_from_spec(CONST_SPEC)
-CONST_SPEC.loader.exec_module(CONSTS)
+# Diagnostic-only header experiment; not a proven production workaround.
+DIAGNOSTIC_BROWSER_HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 BASE_URL = "https://stundenplan.ba-dresden.de/stundenplan/PlanServlet"
 MAX_RESPONSE_BYTES = 3_000_000
@@ -83,7 +79,7 @@ async def aiohttp_fetch(
     async with ClientSession() as session:
         async with session.get(
             url,
-            headers=CONSTS.TIMETABLE_HEADERS if use_browser_user_agent else None,
+            headers=DIAGNOSTIC_BROWSER_HEADERS if use_browser_user_agent else None,
             timeout=ClientTimeout(total=25),
             allow_redirects=False,
         ) as response:
@@ -104,7 +100,7 @@ def main() -> int:
     parser.add_argument(
         "--browser-user-agent",
         action="store_true",
-        help="Send the same minimal browser UA as the successful urllib test",
+        help="Diagnostic comparison only; this header is not a verified fix",
     )
     args = parser.parse_args()
     import re
@@ -118,7 +114,7 @@ def main() -> int:
                 aiohttp_fetch(url, use_browser_user_agent=args.browser_user_agent)
             )
         else:
-            req = Request(url, headers=CONSTS.TIMETABLE_HEADERS)
+            req = Request(url, headers=DIAGNOSTIC_BROWSER_HEADERS)
             with urlopen(req, timeout=25) as response:
                 status = response.status
                 if response.headers.get("Content-Length"):
