@@ -1,0 +1,35 @@
+name: Publish timetable empty-response guard v0.2.6
+
+on:
+  workflow_run:
+    workflows: ["Validate"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish validated revision only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$VERIFIED_SHA" ]; then
+            echo "Old validated SHA, skipping."
+            exit 0
+          fi
+          if gh release view v0.2.6 >/dev/null 2>&1; then
+            echo "v0.2.6 already published."
+            exit 0
+          fi
+          gh release create v0.2.6 \
+            --target "$VERIFIED_SHA" \
+            --title "v0.2.6 - Protect against empty timetable overwrites" \
+            --notes "Safety fix: a syntactically valid timetable page that yields zero recognized events no longer overwrites the last-known-good timetable or reports up_to_date. Instead it is treated as a validation failure and the existing snapshot remains available as stale. The calendar and Sync-Status sensor now expose event_count for easier diagnosis. An already overwritten empty cache cannot reconstruct earlier events without another good university response or a previous Home Assistant backup. A genuinely empty timetable will conservatively remain stale until empty schedules can be authenticated. No additional requests, no change to the hourly polling interval or existing calendar entity ID. Unofficial project, not affiliated with DHSN."

@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup
 
 BERLIN = ZoneInfo("Europe/Berlin")
-TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\b")
+TIME_RE = re.compile(r"\b(\d{1,2}:\d{2})\s*[-–—−]\s*(\d{1,2}:\d{2})\b")
 WEEK_RE = re.compile(
     r"\bvom\s+(\d{1,2}\.\d{1,2}\.\d{4})\s*-\s*(\d{1,2}\.\d{1,2}\.\d{4})",
     re.I,
@@ -40,6 +40,7 @@ SAFE_VALIDATION_REASONS = frozenset(
         "Bad weekday column count",
         "Invalid lecture rowspan",
         "No valid timetable table in response",
+        "No timetable events parsed",
     }
 )
 
@@ -83,22 +84,40 @@ def parse_html(html: str, group: str) -> list[TimetableEvent]:
         if week_start.weekday() != 0:
             raise ValueError("Timetable week does not start on Monday")
 
-        rows = table.find_all("tr", recursive=False)
+        # Some HTML variants wrap table rows in <thead>/<tbody>. Ignore
+        # non-slot header/footer rows, but fail if a lesson row lacks a time.
+        rows = []
+        for child in table.children:
+            if getattr(child, "name", None) == "tr":
+                rows.append(child)
+            elif getattr(child, "name", None) in ("thead", "tbody", "tfoot"):
+                rows.extend(child.find_all("tr", recursive=False))
+
         slots: list[tuple[time, time]] = []
-        for row in rows[1:]:
+        lecture_rows = []
+        for row in rows:
             heading = row.find("th", recursive=False)
-            time_match = TIME_RE.search(heading.get_text(" ", strip=True)) if heading else None
+            time_match = (
+                TIME_RE.search(heading.get_text(" ", strip=True))
+                if heading else None
+            )
             if not time_match:
-                raise ValueError("Time range missing")
+                if any(
+                    set(cell.get("class", [])) & {"Vorlesung", "Feiertag"}
+                    for cell in row.find_all("td", recursive=False)
+                ):
+                    raise ValueError("Time range missing")
+                continue
             slots.append(
                 (time.fromisoformat(time_match.group(1)),
                  time.fromisoformat(time_match.group(2)))
             )
+            lecture_rows.append(row)
         if not slots:
             continue
 
         occupied = [0] * 5
-        for row_number, row in enumerate(rows[1:]):
+        for row_number, row in enumerate(lecture_rows):
             column = 0
             for cell in row.find_all("td", recursive=False):
                 while column < 5 and occupied[column] > 0:
@@ -149,6 +168,17 @@ def parse_html(html: str, group: str) -> list[TimetableEvent]:
         raise ValueError("No valid timetable table in response")
     result.sort(key=start_as_utc)
     return result
+
+
+def require_nonempty_timetable(events: list[TimetableEvent]) -> list[TimetableEvent]:
+    """Reject silently empty parses instead of treating lost lectures as success.
+
+    This deliberately errs on the side of retaining a visibly stale timetable
+    if a genuinely empty semester cannot be distinguished from changed HTML.
+    """
+    if not events:
+        raise ValueError("No timetable events parsed")
+    return events
 
 
 # Last-known-good cache format: only event data, never source HTML or cookies.

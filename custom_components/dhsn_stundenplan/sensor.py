@@ -52,7 +52,8 @@ class DHSNSyncStatusSensor(CoordinatorEntity, SensorEntity):
                 self.coordinator.last_successful_sync.isoformat()
                 if self.coordinator.last_successful_sync
                 else None
-            )
+            ),
+            "event_count": len(self.coordinator.data or []),
         }
 
 
