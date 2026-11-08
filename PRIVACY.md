@@ -23,3 +23,9 @@ During normal operation, roughly one HTTPS request per hour goes directly to the
 Some timetable data may contain lecturers' names or other personal information. Never post real timetables, HAR captures, cookies, tokens or credentials to public issues.
 
 Disable or remove the integration under Settings → Devices & services to stop future periodic requests. Locally retained backups and logs may need separate deletion.
+
+## Setup acknowledgement / Bestätigung bei neuer Einrichtung
+
+The experimental development branch requires new users to confirm they have checked the timetable operator's rules before periodic fetching begins. The acknowledgement is not operator authorization. Existing configurations, local backups and the original data flow remain unchanged. No additional telemetry is introduced.
+
+Im experimentellen Entwicklungszweig ist vor dem ersten automatischen Abruf eine explizite Bestätigung erforderlich, dass die Nutzungsregeln des Stundenplanbetreibers geprüft wurden. Das ist **keine** Erlaubnis der Hochschule. Bestehende Konfigurationen bleiben unverändert. Es gibt keine neue Telemetrie.
