@@ -155,6 +155,12 @@ Home Assistant 2026.3+ supports local integration branding through `custom_compo
 
 **Deutsch:** Das Integrationssymbol wird lokal mitgeliefert. Falls nur HACS „Icon not available“ anzeigt, kann dies an einem bekannten Darstellungsproblem von HACS liegen, nicht an der Integration selbst.
 
+### Release v0.2.7 – Safer timetable handling / Sicherere Stundenplanverarbeitung
+
+**Deutsch:** Version `v0.2.7` enthält die sicheren Diagnose- und Cache-Schutzmaßnahmen aus PR #4 sowie die ausdrückliche Bestätigung der Zugriffsregeln bei **neuen** Installationen. Bereits eingerichtete Stundenpläne behalten ihre Konfiguration und Entitäts-IDs. **Dies ist noch keine bestätigte Lösung für den teilweise unvollständig gelieferten Stundenplan!** Ein erfolgreicher HTTP-Status kann weiterhin nur wenige Wochen enthalten; bitte wichtige Termine im Originalsystem prüfen.
+
+**English:** `v0.2.7` adds sanitized diagnostics, additional protection against truncated future coverage, and an operator-policy acknowledgement for new configurations. Existing entity IDs and configuration entries remain unchanged. **This is not a verified fix for incomplete university responses.** Some HTTP 200 responses still contain only part of the timetable; check important dates against the official portal.
+
 ## Known multiweek sync issue / Bekannter Synchronisationsfehler
 
 **Deutsch (Test am 8. November 2026):** Eine erfolgreiche HTTP-200-Antwort kann einen unvollständigen Plan enthalten. Ein Nutzer erhielt im Einzelabruf mit `urllib` **8 Wochentabellen und 62 Termine**, mit standardmäßigem `aiohttp` dagegen **3 Tabellen und 10 Termine** und mit Browser-`User-Agent` plus `aiohttp` sogar nur **1 Tabelle und 0 Termine**. **Der User-Agent allein ist also keine bestätigte Lösung.** Der HTML-Parser extrahierte jeweils korrekt, was er erhalten hatte. Bis zur Klärung kann die letzte gespeicherte Kalenderansicht veraltet oder unvollständig sein. Bitte bei wichtigen Änderungen den Originalplan prüfen.

@@ -1,0 +1,58 @@
+name: Publish reliability improvements v0.2.7
+
+on:
+  workflow_run:
+    workflows: ["Validate"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release only when current main SHA was validated
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$VERIFIED_SHA" ]; then
+            echo "A newer main revision exists; skip this old workflow result."
+            exit 0
+          fi
+
+          MANIFEST_VERSION="$(gh api "repos/$GH_REPO/contents/custom_components/dhsn_stundenplan/manifest.json?ref=$VERIFIED_SHA" --jq .content | base64 --decode | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+          if [ "$MANIFEST_VERSION" != "0.2.7" ]; then
+            echo "Expected v0.2.7 manifest, found $MANIFEST_VERSION. Skipping."
+            exit 0
+          fi
+          if gh release view v0.2.7 >/dev/null 2>&1; then
+            echo "Release v0.2.7 already exists."
+            exit 0
+          fi
+
+          cat > /tmp/notes.md <<'RELEASE_NOTES'
+          ## DHSN Stundenplan v0.2.7 – Reliability and transparency
+
+          This release includes the reviewed PR #4 maintenance improvements.
+
+          - Better, privacy-conscious diagnostics: response week/table counts, extracted event counts, HTTP status and safe validation failure reasons.
+          - Reject completely empty timetable results and protect previously stored future coverage against unexpectedly shortened responses.
+          - More resilient handling of weekly headings and synthetic tests for multiple weeks.
+          - Explicit acknowledgement of timetable-operator access rules before a **new** configuration begins requesting data; existing Dresden setups remain intact.
+          - Updated maintenance roadmap, German/English setup notes and privacy documentation.
+
+          **Important known issue:** The university timetable endpoint may return only part of the available schedule even with HTTP 200. In one live investigation, urllib retrieved 8 week tables / 62 events, default aiohttp retrieved 3 tables / 10 events, and aiohttp with a browser User-Agent returned 1 empty week. There is **no verified complete fix** for this upstream behavior; the default Home Assistant HTTP transport is unchanged. Please verify crucial appointments in the original university timetable.
+
+          Existing calendar and diagnostic entity IDs, hourly update cadence, and private local cache format are preserved. No additional request types or telemetry added. This is an **unofficial experimental community integration**; authorization for automated polling has not been confirmed by the timetable operator.
+          RELEASE_NOTES
+
+          gh release create v0.2.7 \
+            --target "$VERIFIED_SHA" \
+            --title "v0.2.7 – Reliability and diagnostic improvements" \
+            --notes-file /tmp/notes.md
