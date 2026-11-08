@@ -15,7 +15,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import BASE_URL, CONF_GROUP, DOMAIN
-from .parse import parse_html
+from .parse import parse_html, safe_validation_reason
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.CALENDAR]
@@ -54,9 +54,18 @@ class TimetableCoordinator(DataUpdateCoordinator):
                 if len(raw) > MAX_RESPONSE_BYTES:
                     raise ValueError("Timetable response exceeds size limit")
                 html = raw.decode(response.charset or "utf-8", errors="replace")
-            return await self.hass.async_add_executor_job(parse_html, html, self.group)
-        except (ClientError, asyncio.TimeoutError, OSError, UnicodeError, ValueError) as exc:
-            raise UpdateFailed(f"Timetable update failed: {type(exc).__name__}") from exc
+            events = await self.hass.async_add_executor_job(parse_html, html, self.group)
+            _LOGGER.debug("Parsed DHSN timetable: %s events", len(events))
+            return events
+        except ValueError as exc:
+            # Log only predefined, non-sensitive validation reasons; never raw HTML.
+            raise UpdateFailed(
+                f"Timetable validation failed: {safe_validation_reason(exc)}"
+            ) from exc
+        except (ClientError, asyncio.TimeoutError, OSError, UnicodeError) as exc:
+            raise UpdateFailed(
+                f"Timetable request failed: {type(exc).__name__}"
+            ) from exc
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
