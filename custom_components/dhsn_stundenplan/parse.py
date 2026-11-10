@@ -45,6 +45,9 @@ SAFE_VALIDATION_REASONS = frozenset(
         "Timetable future coverage unexpectedly shortened",
         "Timetable response contains too few week tables",
         "Timetable week count mismatch",
+        "Requested date missing from timetable response",
+        "Duplicate timetable week",
+        "Invalid timetable group",
         "Unexpected timetable endpoint",
         "Unexpected timetable HTTP status",
     }
@@ -191,6 +194,70 @@ def week_table_counts(html: str) -> tuple[int, int]:
         if caption and WEEK_RE.search(caption.get_text(" ", strip=True)):
             recognized += 1
     return len(tables), recognized
+
+
+
+def week_starts_in_html(html: str) -> frozenset[date]:
+    """Extract the complete source-week coverage; reject ambiguous pages."""
+    soup = BeautifulSoup(html, "html.parser")
+    starts = []
+    for table in soup.select("table.Plan"):
+        caption = table.find("caption")
+        match = (
+            WEEK_RE.search(caption.get_text(" ", strip=True))
+            if caption else None
+        )
+        if match is None:
+            raise ValueError("Timetable week header not recognized")
+        starts.append(datetime.strptime(match.group(1), "%d.%m.%Y").date())
+    if len(set(starts)) != len(starts):
+        raise ValueError("Duplicate timetable week")
+    return frozenset(starts)
+
+
+def require_requested_week(weeks: frozenset[date], anchor: date) -> None:
+    """Never accept a successful HTTP response for the wrong date window."""
+    monday = anchor - timedelta(days=anchor.weekday())
+    if monday not in weeks:
+        raise ValueError("Requested date missing from timetable response")
+
+
+def event_week_start(event: TimetableEvent) -> date:
+    start = event.start.date() if isinstance(event.start, datetime) else event.start
+    return start - timedelta(days=start.weekday())
+
+
+def merge_weekly_events(
+    existing: list[TimetableEvent],
+    incoming: list[TimetableEvent],
+    source_weeks: frozenset[date],
+    today: date,
+) -> list[TimetableEvent]:
+    """Replace only weeks explicitly present in the source, preserving others.
+
+    Source weeks are authoritative only after the full HTML validation passes.
+    A result for January must not delete previously cached November/December.
+    Exact duplicates from overlapping windows are removed.
+    """
+    lower = today - timedelta(days=28)
+    upper = today + timedelta(days=400)
+    combined = [
+        event for event in existing
+        if event_week_start(event) not in source_weeks
+    ]
+    combined.extend(incoming)
+    unique = {
+        event for event in combined
+        if lower <= event_week_start(event) <= upper
+    }
+    return sorted(unique, key=start_as_utc)
+
+
+def rolling_anchor(today: date, index: int, step_weeks: int = 6) -> date:
+    """Pick a Monday every six weeks, including today; overlap 8-week pages."""
+    monday = today - timedelta(days=today.weekday())
+    return monday + timedelta(weeks=index * step_weeks)
+
 
 
 def require_sufficient_weeks(

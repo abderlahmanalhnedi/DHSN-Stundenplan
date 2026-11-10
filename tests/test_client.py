@@ -45,6 +45,19 @@ class FakeResponse:
 
 
 class TestSingleRequestTransport(unittest.TestCase):
+    def test_build_dated_url_matches_browser_navigation(self):
+        from datetime import date
+        self.assertEqual(
+            MOD.build_timetable_url("3sp26-1", date(2027, 1, 4)),
+            "https://stundenplan.ba-dresden.de/stundenplan/PlanServlet"
+            "?AktTyp=1&LegendeFach&Datum=4.1.2027&AktWert=3sp26-1",
+        )
+
+    def test_invalid_group_is_rejected(self):
+        from datetime import date
+        with self.assertRaisesRegex(ValueError, "Invalid timetable group"):
+            MOD.build_timetable_url("invalid group &secret", date(2027, 1, 4))
+
     def test_fetch_returns_html_and_browser_user_agent(self):
         from unittest.mock import Mock
         opener = Mock()

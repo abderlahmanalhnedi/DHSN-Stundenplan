@@ -2,8 +2,7 @@
 
 import logging
 import re
-from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode
+from datetime import date, datetime, timedelta, timezone
 
 from urllib.error import HTTPError, URLError
 from homeassistant.config_entries import ConfigEntry
@@ -13,17 +12,21 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .client import fetch_timetable
-from .const import BASE_URL, CONF_GROUP, DOMAIN
+from .client import build_timetable_url, fetch_timetable
+from .const import CONF_GROUP, DOMAIN
 from .parse import (
+    BERLIN,
     decode_cached_timetable,
     encode_cached_timetable,
+    merge_weekly_events,
     parse_html,
     require_nonempty_timetable,
+    require_requested_week,
     require_sufficient_weeks,
+    rolling_anchor,
     safe_validation_reason,
+    week_starts_in_html,
     week_table_counts,
-    would_lose_future_coverage,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +34,10 @@ PLATFORMS = [Platform.CALENDAR, Platform.SENSOR]
 MIN_EXPECTED_WEEK_TABLES = 4  # Safety threshold based on an observed 8-week source.
 UPDATE_INTERVAL = timedelta(hours=1)
 STORAGE_VERSION = 1
+# One HTTP GET per hour, rotated through overlapping six-week anchors.
+# Nine windows span up to roughly 13 months without increasing request rate.
+WINDOW_COUNT = 9
+WINDOW_STEP_WEEKS = 6
 
 
 class TimetableCoordinator(DataUpdateCoordinator):
@@ -51,12 +58,13 @@ class TimetableCoordinator(DataUpdateCoordinator):
         self.last_response_event_count: int | None = None
         self.last_http_status: int | None = None
         self.last_failure_reason: str | None = None
+        self.last_requested_date: date | None = None
+        self.next_window_index = 0
+        self.scan_base_monday: date | None = None
+        self.completed_windows: set[int] = set()
         # Scope the private local cache to this individual config entry.
         self.store = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}", private=True
-        )
-        self.url = BASE_URL + "?" + urlencode(
-            {"akttyp": "1", "aktwert": group, "legendefach": "on"}
         )
 
     async def async_restore_cache(self) -> None:
@@ -84,22 +92,55 @@ class TimetableCoordinator(DataUpdateCoordinator):
 
         self.data = events
         self.last_successful_sync = restored_at
+        # Metadata added in 0.2.9; restore older event-only snapshots unchanged.
+        if isinstance(saved, dict):
+            try:
+                stored_base = date.fromisoformat(saved.get("scan_base_monday", ""))
+                next_index = saved.get("next_window_index")
+                completed = saved.get("completed_windows", [])
+                if (
+                    type(next_index) is int
+                    and 0 <= next_index < WINDOW_COUNT
+                    and isinstance(completed, list)
+                    and all(type(i) is int and 0 <= i < WINDOW_COUNT for i in completed)
+                ):
+                    self.scan_base_monday = stored_base
+                    self.next_window_index = next_index
+                    self.completed_windows = set(completed)
+            except (ValueError, TypeError):
+                pass
         _LOGGER.debug("Restored cached DHSN timetable: %s events", len(events))
 
     async def _async_update_data(self):
-        """Fetch and parse, never replacing a valid cache with failed responses."""
+        """Refresh one dated source window, safely merging overlapping weeks.
+
+        A single hourly request rotates through nine dated windows. Existing
+        November events stay present when the January window is refreshed.
+        """
+        today = datetime.now(BERLIN).date()
+        monday = rolling_anchor(today, 0)
+        if self.scan_base_monday != monday:
+            self.scan_base_monday = monday
+            self.next_window_index = 0
+            self.completed_windows.clear()
+
+        index = self.next_window_index
+        self.next_window_index = (index + 1) % WINDOW_COUNT
+        anchor = rolling_anchor(today, index, WINDOW_STEP_WEEKS)
+        self.last_requested_date = anchor
+
         self.last_response_week_tables = None
         self.last_response_recognized_weeks = None
         self.last_response_event_count = None
         self.last_http_status = None
         self.last_failure_reason = None
+
         try:
-            # urllib performed a complete 8-week fetch in the user's tests,
-            # whereas aiohttp received 1–3 week tables. A single blocking GET
-            # runs in HA's executor and keeps the event loop responsive.
-            fetched = await self.hass.async_add_executor_job(
-                fetch_timetable, self.url
-            )
+            # Date navigation is exposed by the public web interface:
+            # ?AktTyp=1&LegendeFach&Datum=4.1.2027&AktWert=3sp26-1
+            # Keep the established 1/hour request cadence.
+            url = build_timetable_url(self.group, anchor)
+            fetched = await self.hass.async_add_executor_job(fetch_timetable, url)
             self.last_http_status = fetched.http_status
             html = fetched.html
 
@@ -108,20 +149,23 @@ class TimetableCoordinator(DataUpdateCoordinator):
             )
             self.last_response_week_tables = tables
             self.last_response_recognized_weeks = recognized
-            # A source response can return HTTP 200 but contain only 1–3
-            # weeks. Do not overwrite cache even if individual rows parse.
             require_sufficient_weeks(
                 tables, recognized, MIN_EXPECTED_WEEK_TABLES
             )
-            events = await self.hass.async_add_executor_job(parse_html, html, self.group)
-            self.last_response_event_count = len(events)
-            # A syntactically valid table with no recognized events can be a
-            # changed university page; it must never replace good calendar data.
-            require_nonempty_timetable(events)
-            if would_lose_future_coverage(
-                self.data or [], events, datetime.now(timezone.utc)
-            ):
-                raise ValueError("Timetable future coverage unexpectedly shortened")
+            weeks = await self.hass.async_add_executor_job(
+                week_starts_in_html, html
+            )
+            # Reject HTTP 200 if the server ignored the requested date.
+            require_requested_week(weeks, anchor)
+            incoming = await self.hass.async_add_executor_job(
+                parse_html, html, self.group
+            )
+            self.last_response_event_count = len(incoming)
+            require_nonempty_timetable(incoming)
+            # Only replace the source weeks in the newly retrieved period.
+            events = merge_weekly_events(
+                self.data or [], incoming, weeks, today
+            )
         except ValueError as exc:
             self.last_failure_reason = safe_validation_reason(exc)
             raise UpdateFailed(
@@ -135,21 +179,29 @@ class TimetableCoordinator(DataUpdateCoordinator):
                 f"Timetable request failed: {self.last_failure_reason}"
             ) from exc
 
-        # Only a complete valid parse can replace the old snapshot.
         refreshed_at = datetime.now(timezone.utc)
         self.last_successful_sync = refreshed_at
+        self.completed_windows.add(index)
         try:
             snapshot = encode_cached_timetable(self.group, refreshed_at, events)
+            snapshot["scan_base_monday"] = monday.isoformat()
+            snapshot["next_window_index"] = self.next_window_index
+            snapshot["completed_windows"] = sorted(self.completed_windows)
             await self.store.async_save(snapshot)
-        except Exception as exc:  # A disk error must not hide fresh data.
+        except Exception as exc:
             _LOGGER.warning(
-                "Could not save cached DHSN timetable (%s)", type(exc).__name__
+                "Could not save cached DHSN timetable (%s)",
+                type(exc).__name__,
             )
         _LOGGER.debug(
-            "Parsed DHSN timetable: %s events from %s/%s recognized week tables",
+            "Merged DHSN timetable: %s cached events, %s source events, "
+            "%s/%s weeks, scanned windows %s/%s",
             len(events),
-            self.last_response_recognized_weeks,
-            self.last_response_week_tables,
+            self.last_response_event_count,
+            recognized,
+            tables,
+            len(self.completed_windows),
+            WINDOW_COUNT,
         )
         return events
 
