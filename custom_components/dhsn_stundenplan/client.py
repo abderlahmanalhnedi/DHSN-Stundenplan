@@ -6,6 +6,9 @@ November 2026 diagnostic, unlike the aiohttp transport used previously.
 """
 
 from dataclasses import dataclass
+from datetime import date
+import re
+from urllib.parse import quote
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -28,6 +31,21 @@ class NoRedirectHandler(HTTPRedirectHandler):
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
+
+
+def build_timetable_url(group: str, target: date) -> str:
+    """Use the dated link format confirmed by the university website UI.
+
+    The raw 'LegendeFach' query flag and parameter capitalization intentionally
+    match the browser's date-navigation URL. No extra network requests.
+    """
+    if not re.fullmatch(r"[A-Za-z0-9_-]{2,30}", group):
+        raise ValueError("Invalid timetable group")
+    day = f"{target.day}.{target.month}.{target.year}"
+    return (
+        "https://stundenplan.ba-dresden.de/stundenplan/PlanServlet"
+        f"?AktTyp=1&LegendeFach&Datum={day}&AktWert={quote(group, safe='')}"
+    )
 
 
 def fetch_timetable(url: str) -> FetchedTimetable:

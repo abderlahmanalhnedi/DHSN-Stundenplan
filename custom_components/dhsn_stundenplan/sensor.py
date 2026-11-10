@@ -55,6 +55,14 @@ class DHSNSyncStatusSensor(CoordinatorEntity, SensorEntity):
             ),
             "event_count": len(self.coordinator.data or []),
             "last_response_event_count": self.coordinator.last_response_event_count,
+            "last_requested_date": (
+                self.coordinator.last_requested_date.isoformat()
+                if self.coordinator.last_requested_date else None
+            ),
+            "completed_date_windows": len(self.coordinator.completed_windows),
+            "total_date_windows": 9,
+            "next_date_window": self.coordinator.next_window_index,
+
             "last_http_status": self.coordinator.last_http_status,
             "last_failure_reason": self.coordinator.last_failure_reason,
             "last_response_week_tables": self.coordinator.last_response_week_tables,

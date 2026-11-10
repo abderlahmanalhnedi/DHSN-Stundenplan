@@ -72,6 +72,61 @@ class TestParser(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "week count mismatch"):
             MOD.require_sufficient_weeks(8, 7)
 
+    def test_date_anchor_rolls_forward_by_six_weeks(self):
+        from datetime import date
+        day = date(2026, 11, 10)
+        self.assertEqual(MOD.rolling_anchor(day, 0), date(2026, 11, 9))
+        self.assertEqual(MOD.rolling_anchor(day, 1), date(2026, 12, 21))
+        self.assertEqual(MOD.rolling_anchor(day, 2), date(2027, 2, 1))
+        self.assertEqual(MOD.rolling_anchor(day, 8), date(2027, 10, 11))
+
+    def test_dated_source_must_contain_requested_week(self):
+        from datetime import date
+        dated = HTML.replace(
+            "46. Woche vom 9.11.2026-15.11.2026",
+            "1. Woche vom 4.1.2027-10.1.2027",
+        )
+        weeks = MOD.week_starts_in_html(dated)
+        self.assertEqual(weeks, frozenset({date(2027, 1, 4)}))
+        MOD.require_requested_week(weeks, date(2027, 1, 4))
+        with self.assertRaisesRegex(ValueError, "Requested date missing"):
+            MOD.require_requested_week(weeks, date(2027, 2, 1))
+
+    def test_merging_january_does_not_erase_november(self):
+        from datetime import date
+        november = MOD.parse_html(HTML, "test-1")
+        dated = HTML.replace(
+            "46. Woche vom 9.11.2026-15.11.2026",
+            "1. Woche vom 4.1.2027-10.1.2027",
+        ).replace("DEMO", "JANUARY")
+        january = MOD.parse_html(dated, "test-1")
+        source_weeks = MOD.week_starts_in_html(dated)
+        merged = MOD.merge_weekly_events(
+            november, january, source_weeks, date(2026, 11, 10)
+        )
+        self.assertEqual(len(merged), 2)
+        self.assertEqual({event.summary for event in merged}, {"DEMO", "JANUARY"})
+        # Fetching the same week twice must not add duplicate events.
+        twice = MOD.merge_weekly_events(
+            merged, january, source_weeks, date(2026, 11, 10)
+        )
+        self.assertEqual(twice, merged)
+
+    def test_merging_new_week_replaces_old_time_without_duplicates(self):
+        from datetime import date
+        older = MOD.parse_html(HTML, "test-1")
+        newer_html = HTML.replace("DEMO", "REVISED")
+        newer = MOD.parse_html(newer_html, "test-1")
+        merged = MOD.merge_weekly_events(
+            older, newer, MOD.week_starts_in_html(newer_html),
+            date(2026, 11, 10)
+        )
+        self.assertEqual([event.summary for event in merged], ["REVISED"])
+
+    def test_duplicate_week_caption_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Duplicate timetable week"):
+            MOD.week_starts_in_html(HTML + HTML)
+
     def test_manifest_declares_parser_dependency(self):
         import json
         manifest = (

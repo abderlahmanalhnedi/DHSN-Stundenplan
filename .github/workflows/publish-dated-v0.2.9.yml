@@ -1,0 +1,55 @@
+name: Publish dated multi-month timetable v0.2.9
+
+on:
+  workflow_run:
+    workflows: ["Validate"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release only the validated main revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$VERIFIED_SHA" ]; then
+            echo "Main changed after this validation; skipping stale result."
+            exit 0
+          fi
+          VERSION="$(gh api "repos/$GH_REPO/contents/custom_components/dhsn_stundenplan/manifest.json?ref=$VERIFIED_SHA" --jq '.content' | base64 --decode | python3 -c 'import sys,json;print(json.load(sys.stdin)["version"])')"
+          if [ "$VERSION" != "0.2.9" ]; then
+            echo "Manifest is not v0.2.9"
+            exit 0
+          fi
+          if gh release view v0.2.9 >/dev/null 2>&1; then
+            echo "v0.2.9 already published"
+            exit 0
+          fi
+          cat > /tmp/notes.md <<'RELEASE_NOTES'
+          # DHSN Stundenplan v0.2.9 — dated multi-month calendar
+
+          - Use the university's visible dated navigation (`Datum=4.1.2027`) to select future weeks.
+          - Cycle **one existing hourly request** through nine overlapping six-week anchors (around 13 months), without increasing the polling rate.
+          - Merge validated timetable events by week instead of replacing all other months, remove exact duplicates and persist progress across restarts.
+          - Reject wrong-date and partial HTTP-200 responses, retaining the last good events.
+          - Preserve Home Assistant config entries, calendar/sensor entity IDs, and the local cache format; expose date-window scan progress on the Sync-Status sensor.
+          - Offline tests cover exact dated URL shape, week selection, event merges, duplicate avoidance and cancellations.
+
+          **Limitations:** It can take up to nine successful hourly refresh cycles to cover the full horizon. University schedules must actually be published for future months to appear. This experimental code has passed offline HACS/hassfest tests but **has not yet been verified against a January dated request inside the user's Home Assistant runtime**. Failed or incomplete page responses show as stale. The code still uses HTML, not iCal, and automatic timetable access has not been confirmed as permitted by the operator.
+
+          Keep a Home Assistant backup before updating. This is an unofficial community integration, not affiliated with DHSN.
+          RELEASE_NOTES
+
+          gh release create v0.2.9 \
+            --target "$VERIFIED_SHA" \
+            --title "v0.2.9 – Dated multi-month calendar" \
+            --notes-file /tmp/notes.md
