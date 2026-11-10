@@ -43,6 +43,10 @@ SAFE_VALIDATION_REASONS = frozenset(
         "No timetable events parsed",
         "Timetable week header not recognized",
         "Timetable future coverage unexpectedly shortened",
+        "Timetable response contains too few week tables",
+        "Timetable week count mismatch",
+        "Unexpected timetable endpoint",
+        "Unexpected timetable HTTP status",
     }
 )
 
@@ -187,6 +191,16 @@ def week_table_counts(html: str) -> tuple[int, int]:
         if caption and WEEK_RE.search(caption.get_text(" ", strip=True)):
             recognized += 1
     return len(tables), recognized
+
+
+def require_sufficient_weeks(
+    total: int, recognized: int, minimum: int = 4
+) -> None:
+    """Reject a likely truncated HTTP-200 response before saving any cache."""
+    if total < minimum or recognized < minimum:
+        raise ValueError("Timetable response contains too few week tables")
+    if total != recognized:
+        raise ValueError("Timetable week count mismatch")
 
 
 def would_lose_future_coverage(
