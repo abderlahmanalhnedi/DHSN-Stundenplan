@@ -1,26 +1,26 @@
 """Unofficial read-only DHSN timetable integration for Home Assistant."""
 
-import asyncio
 import logging
 import re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
-from aiohttp import ClientError, ClientTimeout
+from urllib.error import HTTPError, URLError
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .client import fetch_timetable
 from .const import BASE_URL, CONF_GROUP, DOMAIN
 from .parse import (
     decode_cached_timetable,
     encode_cached_timetable,
     parse_html,
     require_nonempty_timetable,
+    require_sufficient_weeks,
     safe_validation_reason,
     week_table_counts,
     would_lose_future_coverage,
@@ -28,7 +28,7 @@ from .parse import (
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.CALENDAR, Platform.SENSOR]
-MAX_RESPONSE_BYTES = 3_000_000
+MIN_EXPECTED_WEEK_TABLES = 4  # Safety threshold based on an observed 8-week source.
 UPDATE_INTERVAL = timedelta(hours=1)
 STORAGE_VERSION = 1
 
@@ -94,26 +94,25 @@ class TimetableCoordinator(DataUpdateCoordinator):
         self.last_http_status = None
         self.last_failure_reason = None
         try:
-            session = async_get_clientsession(self.hass)
-            async with session.get(
-                self.url,
-                timeout=ClientTimeout(total=25),
-                allow_redirects=False,
-            ) as response:
-                self.last_http_status = response.status
-                response.raise_for_status()
-                if response.content_length and response.content_length > MAX_RESPONSE_BYTES:
-                    raise ValueError("Timetable response exceeds size limit")
-                raw = await response.content.read(MAX_RESPONSE_BYTES + 1)
-                if len(raw) > MAX_RESPONSE_BYTES:
-                    raise ValueError("Timetable response exceeds size limit")
-                html = raw.decode(response.charset or "utf-8", errors="replace")
+            # urllib performed a complete 8-week fetch in the user's tests,
+            # whereas aiohttp received 1–3 week tables. A single blocking GET
+            # runs in HA's executor and keeps the event loop responsive.
+            fetched = await self.hass.async_add_executor_job(
+                fetch_timetable, self.url
+            )
+            self.last_http_status = fetched.http_status
+            html = fetched.html
 
             tables, recognized = await self.hass.async_add_executor_job(
                 week_table_counts, html
             )
             self.last_response_week_tables = tables
             self.last_response_recognized_weeks = recognized
+            # A source response can return HTTP 200 but contain only 1–3
+            # weeks. Do not overwrite cache even if individual rows parse.
+            require_sufficient_weeks(
+                tables, recognized, MIN_EXPECTED_WEEK_TABLES
+            )
             events = await self.hass.async_add_executor_job(parse_html, html, self.group)
             self.last_response_event_count = len(events)
             # A syntactically valid table with no recognized events can be a
@@ -128,8 +127,10 @@ class TimetableCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(
                 f"Timetable validation failed: {self.last_failure_reason}"
             ) from exc
-        except (ClientError, asyncio.TimeoutError, OSError, UnicodeError) as exc:
+        except (HTTPError, URLError, TimeoutError, OSError, UnicodeError) as exc:
             self.last_failure_reason = type(exc).__name__
+            if isinstance(exc, HTTPError):
+                self.last_http_status = exc.code
             raise UpdateFailed(
                 f"Timetable request failed: {self.last_failure_reason}"
             ) from exc

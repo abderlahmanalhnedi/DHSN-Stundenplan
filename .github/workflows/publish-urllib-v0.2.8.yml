@@ -1,0 +1,59 @@
+name: Publish multiweek transport fix v0.2.8
+
+on:
+  workflow_run:
+    workflows: ["Validate"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release only the validated main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$CURRENT_SHA" != "$VERIFIED_SHA" ]; then
+            echo "Main changed after CI; skipping stale result."
+            exit 0
+          fi
+
+          MANIFEST_VERSION="$(gh api "repos/$GH_REPO/contents/custom_components/dhsn_stundenplan/manifest.json?ref=$VERIFIED_SHA" --jq '.content' | base64 --decode | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+          if [ "$MANIFEST_VERSION" != "0.2.8" ]; then
+            echo "Manifest is not at v0.2.8."
+            exit 0
+          fi
+          if gh release view v0.2.8 >/dev/null 2>&1; then
+            echo "Release already exists."
+            exit 0
+          fi
+
+          cat > /tmp/notes.md <<'RELEASE_NOTES'
+          ## DHSN Stundenplan v0.2.8 — multiweek transport improvement
+
+          **Why:** Live diagnostic results showed `urllib` returning 8 weekly tables / 62 calendar events while default `aiohttp` yielded 3 tables / 10 events, and browser-UA `aiohttp` returned just 1 empty week. HTTP 200 alone was not a completeness guarantee.
+
+          **Changed:**
+          - Replace `aiohttp` timetable fetch with a single bounded `urllib` HTTPS GET running in Home Assistant's executor; no extra scheduled requests.
+          - Use the request form that previously returned all eight weeks (`User-Agent: Mozilla/5.0`), without credentials or cookies.
+          - Reject a partial source response with fewer than four recognized week tables and do not overwrite the existing cache. A valid multiweek response is saved locally as before.
+          - Preserve the config entry, existing calendar / sensor unique IDs, cache key and 60-minute polling interval.
+          - Add offline tests for the exact HTTP transport, request count, response limits, no redirects and short-week rejection.
+
+          **Important limitations:** The developer cannot directly test your running Home Assistant instance. A successful update is not guaranteed until you confirm `last_response_week_tables` and `event_count` after installation. Legitimately shorter schedules can show as `stale`. The observed HTML page contained eight weeks, not all future months. Longer-term access via official iCal is not verified for Dresden.
+
+          Unofficial, experimental project. Permission for automated polling from the timetable operator has not been confirmed; users must respect applicable terms.
+          RELEASE_NOTES
+
+          gh release create v0.2.8 \
+            --target "$VERIFIED_SHA" \
+            --title "v0.2.8 – Multiweek urllib retrieval" \
+            --notes-file /tmp/notes.md

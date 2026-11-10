@@ -58,6 +58,20 @@ class TestParser(unittest.TestCase):
         self.assertEqual(MOD.week_table_counts(document), (8, 8))
         self.assertEqual(len(MOD.parse_html(document, "test-1")), 8)
 
+    def test_short_http_200_is_rejected_before_cache_overwrite(self):
+        for count in (0, 1, 3):
+            with self.subTest(week_tables=count):
+                with self.assertRaisesRegex(ValueError, "too few week tables"):
+                    MOD.require_sufficient_weeks(count, count)
+
+    def test_complete_week_count_is_accepted(self):
+        MOD.require_sufficient_weeks(8, 8)
+        MOD.require_sufficient_weeks(4, 4)
+
+    def test_unrecognized_week_table_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "week count mismatch"):
+            MOD.require_sufficient_weeks(8, 7)
+
     def test_manifest_declares_parser_dependency(self):
         import json
         manifest = (
